@@ -1,5 +1,7 @@
-import requests
+import requests, csv, re, pickle
 from bs4 import BeautifulSoup as bs
+from pathlib import Path
+from collections import Counter
 
 class nhpid(object):
 	def __init__(self):
@@ -7,8 +9,8 @@ class nhpid(object):
 		self.domain = "http://webprod.hc-sc.gc.ca"
 		## list of ingredients' url
 		self.urls = {}
-	def start(self):
-		page = requests.get(self.start_page)
+	def start(self, start_page):
+		page = requests.get(start_page)
 		soup = bs(page.text, "lxml")
 		return soup
 	## find the final url for each ingredient
@@ -18,9 +20,11 @@ class nhpid(object):
 		else:
 			url = self.domain + url
 		return url
-	## write to dict
-	def write(self, name, url):
-		self.urls[name] = url
+	## write the dict to csv file
+	def write(self):
+		with open ("urls.csv", "a") as f:
+			w = csv.writer(f)
+			w.writerows(self.urls.items())
 	## get ingredients' names and urls
 	def iterate(self, soup):
 		context = soup.find(class_ = "center")
@@ -37,15 +41,50 @@ class nhpid(object):
 				item = context.find("a")
 				final_url = self.finishURL(item["href"])
 				self.urls[item.text.strip()] = final_url
-	## testing
-	def test(self):
-		for k,v in self.urls.items():
-			print(k, v)
-				
+		self.write()
+	## get all section names for each ingredient
+	## testing: only use one ingredient
+	def getSection(self):
+		headers = []
+		with open("urls.csv", "r") as f:
+			data = csv.reader(f)
+			## ignore first 3 rows
+			for _ in range(3):
+				next(data)
+			for line in data:
+				website = line[1]
+				page = requests.get(website)
+				soup = bs(page.text, "lxml")
+				context = soup.find(class_ = "center")
+				temp = context.find_all(re.compile('^h[2-6]$'))
+				for each in temp:
+					headers.append(each.text.strip())
+		## dump all headers to a binary file for normalization
+		dumper = open("header", "ab")
+		pickle.dump(headers, dumper)
+		'''
+		with open("section_count.csv", "a") as f:
+			w = csv.writer(f)
+			w.writerows(Counter(headers).items())
+		print("Finish writing sections to file")
+		'''
+			
+	## main function
+	def run(self):
+		## check if it's the first time run
+		ulrs_file = Path("urls.csv")
+		if ulrs_file.is_file():
+			print("Second time run.")
+			self.getSection()
+		else:
+			soup = self.start(self.start_page)
+			self.iterate(soup)
+			self.getSection()
+
+
+
 			
 
 if __name__ == "__main__":
 	x = nhpid()
-	soup = x.start()
-	x.iterate(soup)
-	x.test()
+	x.run()

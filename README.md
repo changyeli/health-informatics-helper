@@ -1,6 +1,6 @@
 # health-informatics-helper
 Several Python scripts for various Health Informatics tasks.
-## Scripts
+## Files
 ### ```generator.py```
 Generate [brat](http://brat.nlplab.org/)'s annotation file given a keyword list.
 
@@ -9,6 +9,8 @@ Extract [Natural Health Products Ingredients Database](http://webprod.hc-sc.gc.c
 
 ### ```norm.py```
 Section names normalization tool for [Natural Health Products Ingredients Database](http://webprod.hc-sc.gc.ca/nhpid-bdipsn/monosReq.do?lang=eng&monotype=single)'s single ingredient monograph.
+### ```requirements.txt```
+Python modules that are needed to run scripts in this repo.
 ## Todo
 * [ ] Full information extraction for [Natural Health Products Ingredients Database](http://webprod.hc-sc.gc.ca/nhpid-bdipsn/monosReq.do?lang=eng&monotype=single)'s single ingredient monograph.
 * [ ] Better normalization tool for section names.

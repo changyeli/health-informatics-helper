@@ -12,6 +12,6 @@ Section names normalization tool for [Natural Health Products Ingredients Databa
 ## Todo
 * [ ] Full information extraction for [Natural Health Products Ingredients Database](http://webprod.hc-sc.gc.ca/nhpid-bdipsn/monosReq.do?lang=eng&monotype=single)'s single ingredient monograph.
 * [ ] Better normalization tool for section names.
-* [ ] Extraction tool for [Cancer care herb](https://www.mskcc.org/cancer-care/diagnosis-treatment/symptom-management/integrative-medicine/herbs/search). **Note: before use this tool, you should get scrapying permission from the website administrator**
+* [ ] Extraction tool for [Cancer care herb](https://www.mskcc.org/cancer-care/diagnosis-treatment/symptom-management/integrative-medicine/herbs/search). **Note: before use this tool, you should get scraping permission from the website administrator**
 
 

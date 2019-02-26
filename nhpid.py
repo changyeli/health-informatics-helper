@@ -56,18 +56,17 @@ class nhpid(object):
 				page = requests.get(website)
 				soup = bs(page.text, "lxml")
 				context = soup.find(class_ = "center")
+				## all headers
 				temp = context.find_all(re.compile('^h[2-6]$'))
+				## only h2
+				#temp = context.find_all("h2")
 				for each in temp:
 					headers.append(each.text.strip())
 		## dump all headers to a binary file for normalization
-		dumper = open("header", "ab")
-		pickle.dump(headers, dumper)
-		'''
-		with open("section_count.csv", "a") as f:
-			w = csv.writer(f)
-			w.writerows(Counter(headers).items())
-		print("Finish writing sections to file")
-		'''
+		print("Dump all headers into a local file")
+		with open("headers", "wb") as f:
+			pickle.dump(headers, f)
+		print("Finish dumping")
 			
 	## main function
 	def run(self):

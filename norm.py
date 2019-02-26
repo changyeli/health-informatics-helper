@@ -86,7 +86,7 @@ class norm(object):
 			clean = []
 			for word, tag in pos:
 				wntg = tag[0].lower()
-				wntg = wntg if wntg in ["a", "r", "n", "v"] else None
+				wntg = wntg if wntg == "n" else None
 				if not wntg:
 					clean.append(word)
 				else:

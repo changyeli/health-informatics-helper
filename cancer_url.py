@@ -15,6 +15,7 @@ class cancer_url(object):
 		while driver.find_elements_by_css_selector(".pager__item"):
 			driver.find_elements_by_css_selector(".pager__item").click()
 			time.sleep(1)
+		
 	def start(self):
 		page = requests.get(self.start_page)
 		soup = bs(page.text, "lxml")

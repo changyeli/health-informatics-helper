@@ -5,6 +5,7 @@ from pathlib import Path
 class nhpid_url(object):
 	def __init__(self):
 		self.start_page = "http://webprod.hc-sc.gc.ca/nhpid-bdipsn/monosReq.do?lang=eng&monotype=single"
+		self.domain = "http://webprod.hc-sc.gc.ca"
 		## list of ingredients' url
 		self.urls = {}
 	## initial step, use beautifulsoup to process website
@@ -44,15 +45,11 @@ class nhpid_url(object):
 	## main function
 	def run(self):
 		## check if it's the first time run
-		ulrs_file = Path("urls.csv")
+		ulrs_file = Path("nhpid_urls.csv")
 		if ulrs_file.is_file():
-			print("Second time run.")
+			print("File already existed.")
 		else:
+			print("Start to extract url for each ingredient...")
 			soup = self.start(self.start_page)
 			self.iterate(soup)
-
-		
-
-if __name__ == "__main__":
-	x = nhpid_url()
-	x.run()
+			print("Finish extracting")

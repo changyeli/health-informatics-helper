@@ -93,7 +93,7 @@ class cancer_url(object):
 	## main function
 	def run(self):
 		driver = self.driverSetup()
-		driver.implicitly_wait(10)
+		driver.implicitly_wait(5)
 		self.loadMore(driver)
 
 

@@ -5,6 +5,10 @@ from selenium.common.exceptions import NoSuchElementException
 class cancer_context(object):
 	def __init__(self):
 		self.urls = "cancer_herb_url.csv"
+		## common headers
+		self.common = ["scientific_name", "clinical_summary", "purported_uses",
+						"food_sources", "mechanism_of_action", "warnings", "contraindications",
+						"adverse_reactions", "herb-drug_interactions"]
 	def driverSetup(self):
 		options = Options()
 		## do not open firefox 
@@ -47,8 +51,10 @@ class cancer_context(object):
 		for each in headers:
 			## find section name: accordion__headline
 			section_name = each.find_element_by_class_name("accordion__headline").get_attribute("data-listname").strip()
+			section_name = section_name.lower().split(" ")
+			section_name = "_".join(section_name)
 			## ignore not-wanted sections
-			if section_name == "Herb Lab Interactions" or section_name == "Brand Name" or section_name == "References" or section_name == "Dosage (OneMSK Only)" or section_name == "Brand Name":
+			if section_name == "herb_lab_interactions" or section_name == "brand_name" or section_name == "references" or section_name == "dosage_(onemsk_only)":
 				pass
 			else:
 			## find section context: field-item
@@ -63,6 +69,10 @@ class cancer_context(object):
 					sections[section_name] = bullets
 				except NoSuchElementException:
 					sections[section_name] = section_content.text.strip()
+			## check if there are missing headers
+			if section_name not in sections:
+				sections[section_name] = ""
+
 		return sections
 	## get content under For Healthcare Professional
 	def getPro(self, driver):
@@ -88,13 +98,17 @@ class cancer_context(object):
 					driver.get(row[1])
 					print("=========================")
 					print("processing " + row[0])
-					data["Name"] = row[0]
+
+					data["name"] = row[0]
 					names = self.getCommon(driver)
-					data["Common Names"] = names
+					data["common_name"] = names
 					sections = self.getPro(driver)
 					for k, v in sections.items():
+						k = k.lower().split(" ")
+						k = "_".join(k)
 						data[k] = v
-					data["Last Updated"] = self.getUpdate(driver)
+					data["last_updated"] = self.getUpdate(driver)
+					data["url"] = row[1]
 					print("=========================")
 					with open("cancer_herb_content.json", "a") as output:
 						json.dump(data, output, indent = 4)

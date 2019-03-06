@@ -93,12 +93,11 @@ class cancer_context(object):
 			with open(self.urls, "r") as f:
 				readCSV = csv.reader(f, delimiter = ",")
 				for row in readCSV:
-					## save each website's extraction in to dict, then save it to json
+					## save each website's extraction in to dict, then save it to jsonl
 					data = {}
 					driver.get(row[1])
 					print("=========================")
 					print("processing " + row[0])
-
 					data["name"] = row[0]
 					names = self.getCommon(driver)
 					data["common_name"] = names
@@ -110,8 +109,10 @@ class cancer_context(object):
 					data["last_updated"] = self.getUpdate(driver)
 					data["url"] = row[1]
 					print("=========================")
-					with open("cancer_herb_content.json", "a") as output:
-						json.dump(data, output, indent = 4)
+					## write to jsonl format
+					with open("cancer_herb_content.jsonl", "a") as output:
+						json.dump(data, output)
+						output.write("\n")
 		except IOError:
 			print("No such file, please run cancer_header.py first.")
 		driver.close()

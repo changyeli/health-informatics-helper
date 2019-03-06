@@ -3,3 +3,12 @@
 __pycache__/
 **/logs 
 *.csv
+*.json
+*.jsonl
+geckodriver.log
+ghostdriver.log
+CANCER/geckodriver.log
+CANCER/ghostdriver.log
+NHPID/ghostdriver.log
+NHPID/geckodriver.log
+

@@ -15,7 +15,7 @@ class cancer_header(object):
 		return driver
 	## extract all headers
 	def extractHeader(self, driver):
-		print("Extracting professionals")
+		print("Extracting headers")
 		headers = driver.find_elements_by_class_name("accordion__headline")
 		for each in headers:
 			name = each.get_attribute("data-listname")
@@ -42,6 +42,7 @@ class cancer_header(object):
 			self.write()
 		except IOError:
 			print("No such file, please run cancer_url.py first")
+		driver.close()
 
 x = cancer_header()
 x.run()

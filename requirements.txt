@@ -1,6 +1,1 @@
-beautifulsoup4
-lxml
-pandas
-nltk
-requests
 selenium

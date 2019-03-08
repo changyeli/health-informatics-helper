@@ -5,10 +5,12 @@ __pycache__/
 *.csv
 *.json
 *.jsonl
+*.p
 geckodriver.log
 ghostdriver.log
 CANCER/geckodriver.log
 CANCER/ghostdriver.log
 NHPID/ghostdriver.log
 NHPID/geckodriver.log
-
+CANCER/*.p
+NHPID/*.p

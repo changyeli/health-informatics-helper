@@ -1,7 +1,8 @@
-import csv, json
+import csv, json, pickle
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.common.exceptions import NoSuchElementException
+from datetime import datetime
 class cancer_context(object):
 	def __init__(self):
 		self.urls = "cancer_herb_url.csv"
@@ -9,6 +10,8 @@ class cancer_context(object):
 		self.common = ["scientific_name", "clinical_summary", "purported_uses",
 						"food_sources", "mechanism_of_action", "warnings", "contraindications",
 						"adverse_reactions", "herb-drug_interactions"]
+		## unwanted headers
+		self.uncomon = ["herb_lab_interactions", "brand_name", "references","dosage_(onemsk_only)"]
 	def driverSetup(self):
 		options = Options()
 		## do not open firefox 
@@ -18,10 +21,10 @@ class cancer_context(object):
 		return driver
 	## get content under common names
 	def getCommon(self, driver):
-		print("extracting common names")
 		context = driver.find_element_by_id("block-mskcc-content")
 		## if the herb has common names
 		try:
+			print("extracting common names")
 			value = context.find_element_by_class_name("list-bullets")
 			items = value.find_elements_by_tag_name("li")
 			names = []
@@ -29,6 +32,7 @@ class cancer_context(object):
 				names.append(each.text.strip())
 			return names
 		except NoSuchElementException:
+			print("No common names")
 			return ""
 	## check if it's under correct section
 	def correctSection(self, context):
@@ -54,25 +58,29 @@ class cancer_context(object):
 			section_name = section_name.lower().split(" ")
 			section_name = "_".join(section_name)
 			## ignore not-wanted sections
-			if section_name == "herb_lab_interactions" or section_name == "brand_name" or section_name == "references" or section_name == "dosage_(onemsk_only)":
-				pass
+			if section_name in self.uncomon:
+				continue
 			else:
-			## find section context: field-item
-				section_content = each.find_element_by_class_name("field-item")
-				## if current section has bullet-list
-				try:
-					value = section_content.find_element_by_class_name("bullet-list")
-					items = value.find_elements_by_tag_name("li")
-					bullets = []
-					for each in items:
-						bullets.append(each.text.strip())
-					sections[section_name] = bullets
-				except NoSuchElementException:
-					sections[section_name] = section_content.text.strip()
+				## extracting wanted headers
+				if section_name in self.common:
+				## find section context: field-item
+					section_content = each.find_element_by_class_name("field-item")
+					## if current section has bullet-list
+					try:
+						value = section_content.find_element_by_class_name("bullet-list")
+						items = value.find_elements_by_tag_name("li")
+						bullets = []
+						for each in items:
+							bullets.append(each.text.strip())
+						sections[section_name] = bullets
+					except NoSuchElementException:
+						sections[section_name] = section_content.text.strip()
+				else:
+					continue
 			## check if there are missing headers
-			if section_name not in sections:
-				sections[section_name] = ""
-
+			res = list(set(sections.keys())^set(self.common))
+			for each in res:
+				sections[each] = ""
 		return sections
 	## get content under For Healthcare Professional
 	def getPro(self, driver):
@@ -86,9 +94,20 @@ class cancer_context(object):
 		section = driver.find_element_by_xpath('//*[@id="field-shared-last-updated"]')
 		time = section.find_element_by_xpath("/html/body/div[2]/div/div/div[1]/main/div/div[2]/div[2]/div[4]/div/div/article/div[1]/div[6]/div/div/time").get_attribute("datetime")
 		return time
-	## main function
-	def run(self):
-		driver = self.driverSetup()
+	## write to local file
+	def write(self):
+		print("loading binary data")
+		with open("cancer_data.p", "rb") as f:
+			values = pickle.load(f)
+		print("writing to json file")
+		for data in values:
+			with open("cancer_herb_content.json", "a") as output:
+				json.dump(data, output)
+				output.write("\n")
+		print("finish writing")
+	## process
+	def process(self, driver):
+		values = []
 		try:
 			with open(self.urls, "r") as f:
 				readCSV = csv.reader(f, delimiter = ",")
@@ -108,28 +127,24 @@ class cancer_context(object):
 						data[k] = v
 					data["last_updated"] = self.getUpdate(driver)
 					data["url"] = row[1]
+					values.append(data)
 					print("=========================")
-					## write to jsonl format
-					with open("cancer_herb_content.jsonl", "a") as output:
-						json.dump(data, output)
-						output.write("\n")
+			print("dumping data to local")
+			with open("cancer_data.p", "wb") as f:
+				pickle.dump(values, f)
 		except IOError:
 			print("No such file, please run cancer_header.py first.")
+		
+	## main function
+	def run(self):
+		starttime = datetime.now()
+		driver = self.driverSetup()
+		self.process(driver)
+		self.write()
 		driver.close()
+		print(starttime - datetime.now())
 	## test with single url
 	def test(self):
-		driver = self.driverSetup()
-		driver.get("https://www.mskcc.org/cancer-care/integrative-medicine/herbs/chrysanthemum")
-		print("==========================")
-		print("--------------------------")
-		print("Common Names")
-		self.getCommon(driver)
-		print("--------------------------")
-		self.getPro(driver)
-		print("--------------------------")
-		print("Last Updated")
-		self.getUpdate(driver)
-		print("--------------------------")
-		print("==========================")
+		self.write()
 x = cancer_context()
-x.run()
+x.test()

@@ -14,3 +14,7 @@ NHPID/ghostdriver.log
 NHPID/geckodriver.log
 CANCER/*.p
 NHPID/*.p
+CANCER/config.py
+*.ipynb
+CANCER/.ipynb
+NHPID/.ipynb

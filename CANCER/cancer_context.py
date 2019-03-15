@@ -147,4 +147,4 @@ class cancer_context(object):
 	def test(self):
 		self.write()
 x = cancer_context()
-x.test()
+x.run()

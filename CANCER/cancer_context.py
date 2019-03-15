@@ -59,7 +59,7 @@ class cancer_context(object):
 			section_name = "_".join(section_name)
 			## ignore not-wanted sections
 			if section_name in self.uncomon:
-				continue
+				pass
 			else:
 				## extracting wanted headers
 				if section_name in self.common:
@@ -76,7 +76,7 @@ class cancer_context(object):
 					except NoSuchElementException:
 						sections[section_name] = section_content.text.strip()
 				else:
-					continue
+					pass
 			## check if there are missing headers
 			res = list(set(sections.keys())^set(self.common))
 			for each in res:

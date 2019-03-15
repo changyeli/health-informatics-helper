@@ -1,6 +1,6 @@
 import urllib.request, urllib.error, urllib.parse
-import json, os, config
-from pprint import pprint
+import json, config
+import time
 class cancer_ann(object):
     def __init__(self):
         self.file = "cancer_herb_content.json"
@@ -69,8 +69,56 @@ class cancer_ann(object):
     def writeADR(self, ar_labels, name, ar, filename):
         ## check if no such section
         if ar_labels is None:
+            ## ignore this cancer herb
             pass
-
+        ## check if there is available annotation
+        if not ar_labels:
+            ## no available annotation
+            data = {}
+            data["name"] = name
+            data["ar_label"] = "None"
+            data["ar_context"] = ar
+            with open(filename, "a") as output1:
+                json.dump(data, output1)
+                output1.write("\n")
+        else:
+            ## available annotation exists
+            data = {}
+            data["name"] = name
+            data["ar_label"] = ar_labels
+            data["ar_context"] = ar
+            with open(filename, "a") as output2:
+                json.dump(data, output2)
+                output2.write("\n")
+    ## write adverse reactions to local file
+    ## @hdi_labels: annotated labels from hdiProcess function
+    ## @name: cancer herb name
+    ## @ar: adverse reactions content
+    ## @filename: local file name to store annotated herb-drug interaction
+    def writeHDI(self, hdi_labels, name, hdi, filename):
+        ## check if no such section
+        if hdi_labels is None:
+            ## ignore this cancer herb
+            pass
+        ## check if there is available annotation
+        if not hdi_labels:
+            ## no available annotation
+            data = {}
+            data["name"] = name
+            data["hdi_label"] = "None"
+            data["hdi_context"] = hdi
+            with open(filename, "a") as output1:
+                json.dump(data, output1)
+                output1.write("\n")
+        else:
+            ## available annotation exists
+            data = {}
+            data["name"] = name
+            data["hdi_label"] = hdi_labels
+            data["hdi_context"] = hdi
+            with open(filename, "a") as output2:
+                json.dump(data, output2)
+                output2.write("\n")
     ## read cancer herb content line by line
     def readJSON(self):
         try:
@@ -79,15 +127,21 @@ class cancer_ann(object):
                     data = json.loads(line)
                     hdi = data["herb-drug_interactions"]
                     ar = data["adverse_reactions"]
-                    print(data["name"])
+                    name = data["name"]
                     ar_labels = self.adrProcess(ar)
                     hdi_labels = self.hdiProcess(hdi)
-                    ## herb-drug interactions
+                    self.writeADR(ar_labels, name, ar, "cancer_adr.json")
+                    self.writeHDI(hdi_labels, name, hdi, "cancer_hdi.json")
         except IOError:
             print("No such file. Please run cancer_context.py first.")
     ## main function
     def run(self):
+        print("start....")
+        start = time.time()
         self.readJSON()
+        print("finished....")
+        endtime = time.time()
+        print("time used: " + str(endtime - start))
 
 x = cancer_ann()
 x.run()

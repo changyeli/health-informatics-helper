@@ -18,3 +18,5 @@ CANCER/config.py
 *.ipynb
 CANCER/.ipynb
 NHPID/.ipynb
+CANCER/.tsv
+NHPID/.tsv

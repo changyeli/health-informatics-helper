@@ -1,6 +1,20 @@
 import json, os.path
 import pandas as pd
 file = "cancer_herb_content.json"
+read_file = "cancer_herb_content.json"
+## overlap ingredients
+overlap_herbs = ["Andrographis", "Blue-Green Algae", "Bromelain", "Butterbur",
+				"Calcium", "Cranberry", "Elderberry", "Fenugreek",
+				"Flaxseed", "Folic Acid", "Ginkgo", "Grape",
+				"Hops", "Indole-3-Carbinol", "Kudzu", "L-Arginine",
+				"L-Tryptophan", "Melatonin", "N-Acetyl Cysteine", "Pomegranate",
+				"Red Clover", "Reishi Mushroom", "Shiitake Mushroom", "Siberian Ginseng", 
+				"Turmeric", "Vitamin B12", "Vitamin E", "Vitamin K"]
+## desired headers
+headers = ["name", "last_updated", "common_name", "scientific_name",
+			"warnings", "contraindications", "clinical_summary",
+			"food_sources", "mechanism_of_action", "purported_uses", 
+			"adverse_reactions", "herb-drug_interactions"]
 ## extract necessary subheaders
 def extract():
     try:
@@ -84,16 +98,46 @@ def stat(data):
 	print("Total %d Cancer herbs have both structured adverse reactions and herb-drug interactions content." % data.loc[(data["hdi_flag"] == True) & (data["ar_flag"] == True)].shape[0])
 	print("Total %d Cancer herbs do not have adverse reactions content" % data.loc[data["ar_context"] == " "].shape[0])
 	print("Total %d Cancer herbs do not have herb-drug interactions content" % data.loc[data["hdi_context"] == " "].shape[0])
+## extract desired ingredients
+def extract_herb():
+	try:
+		with open(read_file, "r") as f:
+			for line in f:
+				data = json.loads(line)
+				## check if the ingredient is desired
+				if data["name"] in overlap_herbs:
+					herb = {}
+					for each in headers:
+						herb[each] = data[each]
+					write(herb, "MSKCC_overlap.json")
+				else:
+					pass
+	except IOError:
+		print("No such file.")
+## change data format
+def change():
+	dt = pd.read_json("MSKCC_overlap.json", lines = True)
+	dt.to_csv("MSKCC_overlap.csv", sep = "\t", index = False)
+	dt.to_csv("MSKCC_overlap.tsv", sep = "\t", index = False)
+## main function
 def run():
+	if os.path.exists("MSKCC_overlap.json"):
+		change()
+	else:
+		extract_herb()
+		change()
+	'''
+	## merge all contents into one file
 	if os.path.exists("cancer_pu.json"):
 		data = merge()
-		data = addFlag(data, "merged_cancer.csv")
+		data = addFlag(data, "merged_cancer.tsv")
 		stat(data)
 	else:
 		extract()
 		data = merge()
-		data = addFlag(data, "merged_cancer.csv")
+		data = addFlag(data, "merged_cancer.tsv")
 		stat(data)
+	'''
 
 if __name__ == "__main__":
     run()

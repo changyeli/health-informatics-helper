@@ -9,7 +9,9 @@ overlap_herbs = ["Andrographis", "Blue-Green Algae", "Bromelain", "Butterbur",
 				"Hops", "Indole-3-Carbinol", "Kudzu", "L-Arginine",
 				"L-Tryptophan", "Melatonin", "N-Acetyl Cysteine", "Pomegranate",
 				"Red Clover", "Reishi Mushroom", "Shiitake Mushroom", "Siberian Ginseng", 
-				"Turmeric", "Vitamin B12", "Vitamin E", "Vitamin K"]
+				"Turmeric", "Vitamin B12", "Vitamin E", "Vitamin K",
+				"Blue-green Algae", "Folate", "Grape seeds", "Arginine",
+				"5-HTP", "N-Acetylcysteine"]
 ## desired headers
 headers = ["name", "last_updated", "common_name", "scientific_name",
 			"warnings", "contraindications", "clinical_summary",
@@ -108,7 +110,7 @@ def extract_herb():
 				if data["name"] in overlap_herbs:
 					herb = {}
 					for each in headers:
-						herb[each] = data[each]
+						herb[each] = getBefore(data[each])
 					write(herb, "MSKCC_overlap.json")
 				else:
 					pass
@@ -117,10 +119,39 @@ def extract_herb():
 ## change data format
 def change():
 	dt = pd.read_json("MSKCC_overlap.json", lines = True)
-	dt.to_csv("MSKCC_overlap.csv", sep = "\t", index = False)
+	print(dt.shape)
 	dt.to_csv("MSKCC_overlap.tsv", sep = "\t", index = False)
+## extract words before colon
+## @value: 
+def getBefore(value):
+	if isinstance(value, list):
+		values = []
+		for each in value:
+			values.append(each.split(":")[0])
+		return " ".join(values)
+	else:
+		return value.split(":")[0]
+## check structured but not regular ingredient section content
+def checkHerb():
+	names = []
+	try:
+		with open(read_file, "r") as f:
+			for line in f:
+				data = json.loads(line)
+				hdi = getBefore(data["herb-drug_interactions"])
+				if "Common" in hdi:
+					print("===================")
+					print(hdi)
+					names.append(data["name"])
+					print("===================")
+		print(len(names))
+		print(names)
+	except IOError:
+		print("No such file.")
 ## main function
 def run():
+	#checkHerb()
+	
 	if os.path.exists("MSKCC_overlap.json"):
 		change()
 	else:

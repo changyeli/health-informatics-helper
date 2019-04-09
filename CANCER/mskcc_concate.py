@@ -38,7 +38,6 @@ def write(output_file, data):
 	with open(output_file, "a") as output:
 		w = csv.writer(output, delimiter = "\t")
 		w.writerows(data.items())
-
 ## concatenate list of string into string
 ## @value: herb["some-headers"]
 def concate(value):
@@ -90,7 +89,6 @@ def read(read_file):
 
 	except IOError:
 		print("No such file.")
-
 ## main function
 def run():
 	read(read_file)

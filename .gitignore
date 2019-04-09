@@ -20,3 +20,5 @@ CANCER/*.ipynb
 NHPID/*.ipynb
 CANCER/*.tsv
 NHPID/*.tsv
+CANCER/*.XML
+CANCER/*.xml

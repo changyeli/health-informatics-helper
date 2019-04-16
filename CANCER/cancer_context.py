@@ -80,7 +80,7 @@ class cancer_context(object):
 			## check if there are missing headers
 			res = list(set(sections.keys())^set(self.common))
 			for each in res:
-				sections[each] = ""
+				sections[each] = " "
 		return sections
 	## get content under For Healthcare Professional
 	def getPro(self, driver):
@@ -145,6 +145,15 @@ class cancer_context(object):
 		print(starttime - datetime.now())
 	## test with single url
 	def test(self):
-		self.write()
+		with open("cancer_herb_content.json", "r") as f:
+			for line in f:
+				data = json.loads(line)
+				try:
+					print(data["name"])
+					print(data["contraindications"])
+					print("\n")
+					break
+				except KeyError:
+					print("No such content.")
 x = cancer_context()
-x.run()
+x.test()

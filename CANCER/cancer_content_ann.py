@@ -59,6 +59,25 @@ class main(object):
         with open(os.path.join(self.file_location, output_file), "a") as output:
             w = csv.writer(output, delimiter = "\t")
             w.writerow([v for v in data.values()])
+    ## process MM JSON output
+    ## @output: MM output, string type
+    ## @types: list of semantic types
+    ## return the max scored item
+    ## if it has more than one max scored item, return the item with more MM types
+    ## TODO: need to rewrite this part to avoid nested loop
+    def selectOutput(self, output, types):
+        mm_output = json.loads(output)
+        docs = mm_output["AllDocuments"] ## must be []
+        for doc in docs:
+            document = doc["Document"]
+            utterances = document["Utterances"] ## must be []
+            for each in utterances:
+                phrases = each["Phrases"] ## must be []
+                for item in phrases:
+                    mappings = item["Mappings"] ## must be []
+                    for anno in mappings:
+                        print(anno)
+                        print("\n")
     ## HDI annotation process
     ## get HDI content annotated using MM
     ## @name: herb name that in the overlap
@@ -68,7 +87,6 @@ class main(object):
     def HDIprcess(self, name, hdi, mm, output_file):
         data = {}
         data["name"] = name
-        print(os.getcwd())
         hdi = self.remove(self.getBefore(hdi))
         ## if hdi is empty
         if not hdi:
@@ -80,12 +98,14 @@ class main(object):
                 for each in hdi:
                     command = mm.getComm(each, additional = " --term_processing")
                     print(command)
-                    output = mm.getAnnNoOutput(each).decode("utf-8")
-                    print(output)
+                    output = mm.getAnn(command, "JSON").decode("utf-8")
+                    ## remove output first line
+                    output = "\n".join(output.split("\n")[1:])
+                    self.selectOutput(output)
             else:
                 command = mm.getComm(hdi, additional = " --term_processing")
-                output = mm.getAnnNoOutput(each).decode("utf-8")
-                print(output)
+                output = mm.getAnn(command, "JSON").decode("utf-8")
+                self.selectOutput(output)
         #self.writeContent(output_file, data)
     ## AR annotation process
     ## get AR content annotated using MEDDRA
@@ -144,20 +164,32 @@ class main(object):
     ## @fun: annotation section names, i.e. PU, HDI
     ## each section will return a list of MM types
     def readTypes(self, fun):
-        full_types = pd.read_csv("mmtypes.txt", sep = "|", header = None, index_col = False)
-        full_types.columns = ["group", "name", "tui", "types"]
-        if fun not in ["PU, HDI, CON"]:
-            raise ValueError("Currently only supports PU, HDI and CON")
+        full_types = pd.read_csv("mmmap.txt", sep = "|", header = None, index_col = False)
+        full_types.columns = ["abbrev", "tui", "types"]
+        if fun.upper() not in ["HDI", "PU", "CON"]:
+            raise ValueError("Currently only supports HDI, PU and Con.")
         else:
-            if fun.upper() == "PU":
-                pu_types = full_types.loc[full_types["group"].isin(["DISO", "PHYS", "PROC"])]
-                return pu_types["types"].values()
+            ## hdi mm types
             if fun.upper() == "HDI":
-                hdi_types = full_types.loc[full_types["group"] == "CHEM"]
-                return hdi_types["types"].values()
+                hdi_types = pd.read_csv("hdi_types.txt", sep = "|", header = None, index_col = False)
+                hdi_types.columns = ["group", "group_name", "tui", "types"]
+                hdi_types = hdi_types["tui"].values()
+                hdi = full_types.loc[full_types["tui"].isin(hdi_types)]
+                return hdi["abbrev"].values()
+            ## pu mm types
+            if fun.upper() == "PU":
+                pu_types = pd.read_csv("pu_types.txt", sep = "|", header = None, index_col = False)
+                pu_types.columns = ["group", "group_name", "tui", "types"]
+                pu_types = pu_types["tui"].values()
+                pu = full_types.loc[full_types["tui"].isin(pu_types)]
+                return pu["abbrev"].values()
+            ## con mm types
             if fun.upper() == "CON":
-                con_types = full_types.loc[full_types["group"].isin(["DISO", "PHYS", "PROC"])]
-                return con_types["types"].values()
+                con_types = pd.read_csv("con_types.txt", sep = "|", header = None, index_col = False)
+                con_types.columns = ["group", "group_name", "tui", "types"]
+                con_types = con_types["tui"].values()
+                con = full_types.loc[full_types["tui"].isin(pu_types)]
+                return con["abbrev"].values()
     ## read the herb file
     def readFile(self):
         ## start mm server
@@ -169,9 +201,10 @@ class main(object):
             for line in f:
                 herb = json.loads(line)
                 if herb["name"] in self.overlap_herbs:
-                    pass
+                    #pass
                     ## HDI
-                    #self.HDIprcess(herb["name"], herb["herb-drug_interactions"], mm, "overlap_hdi.tsv")
+                    self.HDIprcess(herb["name"], herb["herb-drug_interactions"], mm, "overlap_hdi.tsv")
+                    break
                     #self.writeContent("overlap_hdi.tsv", data)
                     ## ADR
                     #self.ADRprocess(herb["name"], herb["adverse_reactions"], meddra, "overlap_adr.tsv")
@@ -181,7 +214,8 @@ class main(object):
                     pass
     ## main function
     def run(self):
-        self.readTypes()
+        #self.readTypes()
+        self.readFile()
 if __name__ == "__main__":
     x = main()
     x.run()

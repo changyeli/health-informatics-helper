@@ -32,7 +32,7 @@ class umlsAnn(object):
             raise ValueError("Only JSON and XML formats supported")
         else:
             if output.upper() == "JSON":
-                command += " --JSONn 0"
+                command += " --JSONn"
             else:
                 command += " --XMLf1"
         output = subprocess.Popen(command, shell = True, stdout = subprocess.PIPE).stdout.read()

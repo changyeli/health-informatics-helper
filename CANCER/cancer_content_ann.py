@@ -1,5 +1,8 @@
 import json, re, csv, os
-import umlsAnn, meddraAnn
+from umlsAnn import umlsAnn
+from meddraAnn import meddraAnn
+from collections import Counter
+import pandas as pd
 ## main class for getting annotation
 class main(object):
     def __init__(self):
@@ -21,8 +24,14 @@ class main(object):
         self.headers = ["last_updated", "common_name", "scientific_name",
                     "warnings",  "clinical_summary",
                 "food_sources", "mechanism_of_action"]
-        ## MM location
-        self.location = "/Users/Changye/Documents/workspace/public_mm"
+    ## concate list of string into single string
+    ## @value: content to be concated
+    ## @sep: separator, i.e. "\t", "\n", " "
+    def concate(self, value, sep):
+        if isinstance(value, list):
+            return (sep.join(value))
+        else:
+            return value
     ## remove all non-ASCII characters in the content
     ## remove contents inside of ()
     ## @value: the content needs to be cleaned
@@ -47,17 +56,9 @@ class main(object):
     ## @output_file: file to write
     ## @data: extracted herb information in dict form
     def writeContent(self, output_file, data):
-        ## write headers first
-        ## file already exists and has headers
-        if os.path.isfile(output_file):
-            with open(os.path.join(self.file_location, output_file), "a") as output:
-                w = csv.writer(output, delimiter = "\t")
-                w.writerow([v for v in data.values()])
-        else:
-            with open(os.path.join(self.file_location, output_file), "a") as output:
-                w = csv.writer(output, delimiter = "\t")
-                w.writerow([k for k in data.keys()])
-                w.writerow([v for v in data.values()])
+        with open(os.path.join(self.file_location, output_file), "a") as output:
+            w = csv.writer(output, delimiter = "\t")
+            w.writerow([v for v in data.values()])
     ## HDI annotation process
     ## get HDI content annotated using MM
     ## @name: herb name that in the overlap
@@ -82,24 +83,9 @@ class main(object):
                     output = mm.getAnnNoOutput(each).decode("utf-8")
                     print(output)
             else:
-                command = mm.getComm(each, additional = " --term_processing")
+                command = mm.getComm(hdi, additional = " --term_processing")
                 output = mm.getAnnNoOutput(each).decode("utf-8")
                 print(output)
-
-            '''
-            else:
-                command = mm.getComm(hdi, additional = "--term_processing")
-                output = mm.getAnn(command, "JSON").decode("utf-8")
-                print(output)
-            res = []
-            for each in output.split("\n"):
-                if "Pharmacologic Substance" in each or "Organic Chemical" in each:
-                    res.append(each)
-            res = list(set(res))
-            res = "\n".join(res)
-            data["annotated_HDI"] = res
-            data["HDI"] = hdi
-            '''
         #self.writeContent(output_file, data)
     ## AR annotation process
     ## get AR content annotated using MEDDRA
@@ -110,7 +96,8 @@ class main(object):
     def ADRprocess(self, name, ar, meddra, output_file):
         data = {}
         data["name"] = name
-        ar = self.remove(self.concate(ar))
+        print(name)
+        ar = self.remove(self.concate(ar, " "))
         ## if ar is empty
         if not ar:
             data["ADR"] = " "
@@ -118,11 +105,10 @@ class main(object):
         else:
             res = meddra.adrProcess(ar)
             res = [x.lower() for x in res]
-            res = list(set(res))
-            res = self.concate(res)
+            res = self.concate(list(Counter(res).keys()), "\n")
             data["ADR"] = ar
             data["annotated_ADR"] = res
-        #self.writeContent(output_file, data)
+        self.writeContent(output_file, data)
     ## purposed uses annotation process
     ## get purposed uses content annotated using MM
     ## @name: herb name that in the overlap
@@ -154,10 +140,28 @@ class main(object):
             data["annotated_PU"] = res
             data["PU"] = pu
             print("=======================================")
-    ## read the file
+    ## read MM type file
+    ## @fun: annotation section names, i.e. PU, HDI
+    ## each section will return a list of MM types
+    def readTypes(self, fun):
+        full_types = pd.read_csv("mmtypes.txt", sep = "|", header = None, index_col = False)
+        full_types.columns = ["group", "name", "tui", "types"]
+        if fun not in ["PU, HDI, CON"]:
+            raise ValueError("Currently only supports PU, HDI and CON")
+        else:
+            if fun.upper() == "PU":
+                pu_types = full_types.loc[full_types["group"].isin(["DISO", "PHYS", "PROC"])]
+                return pu_types["types"].values()
+            if fun.upper() == "HDI":
+                hdi_types = full_types.loc[full_types["group"] == "CHEM"]
+                return hdi_types["types"].values()
+            if fun.upper() == "CON":
+                con_types = full_types.loc[full_types["group"].isin(["DISO", "PHYS", "PROC"])]
+                return con_types["types"].values()
+    ## read the herb file
     def readFile(self):
         ## start mm server
-        mm = umlsAnn(self.location)
+        mm = umlsAnn()
         mm.start()
         ## get meddra constructor
         meddra = meddraAnn()
@@ -165,21 +169,19 @@ class main(object):
             for line in f:
                 herb = json.loads(line)
                 if herb["name"] in self.overlap_herbs:
+                    pass
                     ## HDI
-                    self.HDIprcess(herb["name"], herb["herb-drug_interactions"], mm, "overlap_hdi.tsv")
-                    '''
+                    #self.HDIprcess(herb["name"], herb["herb-drug_interactions"], mm, "overlap_hdi.tsv")
                     #self.writeContent("overlap_hdi.tsv", data)
                     ## ADR
-                    self.ADRprocess(herb["name"], herb["adverse_reactions"], meddra, "overlap_adr.tsv")
+                    #self.ADRprocess(herb["name"], herb["adverse_reactions"], meddra, "overlap_adr.tsv")
             
-                    self.PUprpcess(herb["name"], herb["purported_uses"], mm, "overlap_con.tsv")
-                    '''
-                    break
+                    ##self.PUprpcess(herb["name"], herb["purported_uses"], mm, "overlap_con.tsv")
                 else:
                     pass
     ## main function
     def run(self):
-        self.readFile()
+        self.readTypes()
 if __name__ == "__main__":
     x = main()
     x.run()

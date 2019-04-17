@@ -1,9 +1,9 @@
 import os, subprocess
 ## get UMLS annotation for HDI, contradictions and purposed uses
 class umlsAnn(object):
-    def __init__(self, location):
+    def __init__(self):
         ## MetaMap location
-        self.location = location
+        self.location = "/Users/Changye/Documents/workspace/public_mm"
         ## get this python script location
         self.path = os.path.dirname(os.path.abspath(__file__))
     ## start MM server 

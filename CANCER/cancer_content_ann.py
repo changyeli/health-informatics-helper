@@ -1,88 +1,5 @@
-import urllib.request, urllib.error, urllib.parse
-import json, config, os, subprocess, re, csv, pickle
-import pandas as pd
-class meddraAnn(object):
-    def __init__(self):
-        self.meddra = "/annotator?ontologies=http://data.bioontology.org/ontologies/MEDDRA&text=" 
-        self.REST_URL = "http://data.bioontology.org"
-        self.API_KEY = config.api_key
-    ## BioPortal login
-    def auth(self, url):
-        opener = urllib.request.build_opener()
-        opener.addheaders = [('Authorization', 'apikey token=' + self.API_KEY)]
-        return json.loads(opener.open(url).read())
-    ## get prefLabel from annotation
-    ## @ annotations: the annotated document from BioPortal
-    def getLabel(self, annotations, get_class = True):
-        labels = []
-        for result in annotations:
-            class_details = result["annotatedClass"]
-            if get_class:
-                try:
-                    class_details = self.auth(result["annotatedClass"]["links"]["self"])
-                except urllib.error.HTTPError:
-                    print(f"Error retrieving {result['annotatedClass']['@id']}")
-                    continue
-            labels.append(class_details["prefLabel"])
-        return labels
-    ## adverse reactions pre-process
-    ## @ar: data["adverse_reactions"]
-    ## return annotated terms
-    def adrProcess(self, ar):
-        ## check if exists adverse_reactions section
-        if ar:
-            ar_annotations = self.auth(self.REST_URL + self.meddra + urllib.parse.quote(ar))
-            labels = self.getLabel(ar_annotations)
-            return labels
-        else:
-            return " "
-## get UMLS annotation for HDI, contradictions and purposed uses
-class umlsAnn(object):
-    def __init__(self, location):
-        ## MetaMap location
-        self.location = location
-        ## get this python script location
-        self.path = os.path.dirname(os.path.abspath(__file__))
-    ## start MM server 
-    def start(self):
-        os.chdir(self.location)
-        output = subprocess.check_output(["./bin/skrmedpostctl", "start"])
-        print(output)
-    ## get MM command
-    ## @value: content to be annotated
-    ## @additional: additional command to be added
-    ## @relax: true if use relax model for term processing
-    ## return MM commands
-    ## TODO: add more supported commands
-    def getComm(self, value, additional = "", relax = True):
-        if relax:
-            command = "echo " + "'" + value + "'"  + " | " + "./bin/metamap16" + " -I " + "-Z 2018AB -V Base --relaxed_model " + "--silent "  + "--ignore_word_order " + additional # +  "--term_processing "
-            return command
-        else:
-            command = "echo " + "'" + value + "'"  + " | " + "./bin/metamap16" + " -I " + "-Z 2018AB  -V Base " + "--silent "  + "--ignore_word_order " + additional # +  "--term_processing "
-            return command
-    ## get annotated terms using UMLS
-    ## @output: the desired format for the annotated terms. Select choices: JSON, XML
-    ## return MM output
-    def getAnn(self, command, output):
-        command = self.getComm(value)
-        if output not in ["JSON", "XML"]:
-            raise ValueError("Only JSON and XML formats supported")
-        else:
-            if output.upper() == "JSON":
-                command += "--JSONf 0"
-            else:
-                command += "--XMLf1"
-        output = subprocess.Popen(command, shell = True, stdout = subprocess.PIPE).stdout.read()
-        return output
-    ## get annotated terms using UMLS without output format
-    ## @command: full command from @getComm function
-    ## return MM output
-    def getAnnNoOutput(self, command):
-        ## echo lung cancer | ./bin/metamap16 -I
-        ## check if value is valid
-        output = subprocess.Popen(command, shell = True, stdout = subprocess.PIPE).stdout.read()
-        return output
+import json, re, csv, os
+import umlsAnn, meddraAnn
 ## main class for getting annotation
 class main(object):
     def __init__(self):
@@ -110,23 +27,22 @@ class main(object):
     ## remove contents inside of ()
     ## @value: the content needs to be cleaned
     def remove(self, value):
-        value = re.sub(r'[^\x00-\x7F]+', " ", value)
-        value = re.sub(r" ?\([^)]+\)", "", value)
-        return value
+        if isinstance(value, list):
+            value = [re.sub(r'[^\x00-\x7F]+', " ", each) for each in value]
+            value = [re.sub(r" ?\([^)]+\)", "", each) for each in value]
+            return value
+        else:
+            value = re.sub(r'[^\x00-\x7F]+', " ", value)
+            value = re.sub(r" ?\([^)]+\)", "", value)
+            return value
     ## get content before ":"
     ## @content: content need to be split 
     def getBefore(self, content):
         if isinstance(content, list):
             value = [each.split(":")[0] for each in content]
-            return " ".join(value)
+            return value
         else:
             return content.split(":")[0]
-    ## concate list into single string
-    def concate(self, value):
-        if isinstance(value, list):
-            return " ".join(value)
-        else:
-            return value
     ## write to local .tsv file if the content exists
     ## @output_file: file to write
     ## @data: extracted herb information in dict form
@@ -151,6 +67,7 @@ class main(object):
     def HDIprcess(self, name, hdi, mm, output_file):
         data = {}
         data["name"] = name
+        print(os.getcwd())
         hdi = self.remove(self.getBefore(hdi))
         ## if hdi is empty
         if not hdi:
@@ -158,8 +75,22 @@ class main(object):
             data["annotated_HDI"] = " "
         ## hdi is not empty
         else:
-            command = mm.getComm(hdi, additional = "--term_processing")
-            output = mm.getAnnNoOutput(command).decode("utf-8")
+            if isinstance(hdi, list):
+                for each in hdi:
+                    command = mm.getComm(each, additional = " --term_processing")
+                    print(command)
+                    output = mm.getAnnNoOutput(each).decode("utf-8")
+                    print(output)
+            else:
+                command = mm.getComm(each, additional = " --term_processing")
+                output = mm.getAnnNoOutput(each).decode("utf-8")
+                print(output)
+
+            '''
+            else:
+                command = mm.getComm(hdi, additional = "--term_processing")
+                output = mm.getAnn(command, "JSON").decode("utf-8")
+                print(output)
             res = []
             for each in output.split("\n"):
                 if "Pharmacologic Substance" in each or "Organic Chemical" in each:
@@ -168,6 +99,7 @@ class main(object):
             res = "\n".join(res)
             data["annotated_HDI"] = res
             data["HDI"] = hdi
+            '''
         #self.writeContent(output_file, data)
     ## AR annotation process
     ## get AR content annotated using MEDDRA
@@ -233,38 +165,16 @@ class main(object):
             for line in f:
                 herb = json.loads(line)
                 if herb["name"] in self.overlap_herbs:
-                    '''
                     ## HDI
-                    try:
-                        self.HDIprcess(herb["name"], herb["herb-drug_interactions"], mm, "overlap_hdi.tsv")
-                    except KeyError:
-                        data = {}
-                        data["name"] = name
-                        data["HDI"] = " "
-                        data["annotated_HDI"] = " "
-                        #self.writeContent("overlap_hdi.tsv", data)
-                        print("No such content.")
-                    ## ADR
-                    try:
-                        self.ADRprocess(herb["name"], herb["adverse_reactions"], meddra, "overlap_adr.tsv")
-                    except KeyError:
-                        data = {}
-                        data["name"] = name
-                        data["ADR"] = " "
-                        data["annotated_ADR"] = " "
-                        #self.writeContent("overlap_adr.tsv", data)
-                        print("No such content.")
+                    self.HDIprcess(herb["name"], herb["herb-drug_interactions"], mm, "overlap_hdi.tsv")
                     '''
-                    try:
-                        self.PUprpcess(herb["name"], herb["purported_uses"], mm, "overlap_con.tsv")
-                        break
-                    except KeyError:
-                        data = {}
-                        data["name"] = name
-                        data["contraindications"] = " "
-                        data["annotated_CON"] = " "
-                        #self.writeContent("overlap_con.tsv", data)
-                        print("No such content.")
+                    #self.writeContent("overlap_hdi.tsv", data)
+                    ## ADR
+                    self.ADRprocess(herb["name"], herb["adverse_reactions"], meddra, "overlap_adr.tsv")
+            
+                    self.PUprpcess(herb["name"], herb["purported_uses"], mm, "overlap_con.tsv")
+                    '''
+                    break
                 else:
                     pass
     ## main function

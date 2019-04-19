@@ -1,4 +1,5 @@
 import json
+import re
 file = "cancer_herb_content.json"
 ## script for multiple inspections
 def test():

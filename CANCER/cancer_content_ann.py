@@ -189,44 +189,48 @@ class main(object):
     # return single qualified string
 
     def findHDIQualified(self, terms, types):
-        # if there is only one term in the chunk
-        if len(terms) == 1:
-            s = terms[0]
-            patterns = re.findall(r'\[(.*?)\]', s)
-            patterns = self.getSplitHDI(patterns)
-            # check if the annotated term has required semantic types
-            if self.isSubset(patterns, types):
-                return s
-        # if there are multiple terms in the chunk
+        # if there is no such term
+        if terms is None:
+            return " "
         else:
-            patterns = [re.findall(r'\[(.*?)\]', s) for s in terms]
-            if not patterns:
-                return " "
-            else:
+            # if there is only one term in the chunk
+            if len(terms) == 1:
+                s = terms[0]
+                patterns = re.findall(r'\[(.*?)\]', s)
                 patterns = self.getSplitHDI(patterns)
-                flags = [self.isSubset(each, types) for each in patterns]
-                flags_index = [index for index,
-                               value in enumerate(flags) if value]
-                # if none of the terms have required semantic types
-                if not flags_index:
-                    print("no valid annotated terms")
+                # check if the annotated term has required semantic types
+                if self.isSubset(patterns, types):
+                    return s
+            # if there are multiple terms in the chunk
+            else:
+                patterns = [re.findall(r'\[(.*?)\]', s) for s in terms]
+                if not patterns:
                     return " "
                 else:
-                    # if only one valid term
-                    if len(flags_index) == 1:
-                        terms_temp1 = terms[flags_index[0]]
-                        return terms_temp1
+                    patterns = self.getSplitHDI(patterns)
+                    flags = [self.isSubset(each, types) for each in patterns]
+                    flags_index = [index for index,
+                                   value in enumerate(flags) if value]
+                    # if none of the terms have required semantic types
+                    if not flags_index:
+                        print("no valid annotated terms")
+                        return " "
                     else:
-                        terms_temp1 = list(itemgetter(*flags_index)(terms))
-                        scores = [re.findall(r"^\d+", each)
-                                  for each in terms_temp1]
-                        # remove empty scores
-                        scores = list(filter(None, scores))
-                        scores = [each[0] for each in scores]
-                        max_index = [index for index, value in enumerate(
-                            scores) if value == max(scores)]
-                        terms_temp2 = itemgetter(*max_index)(terms_temp1)
-                        return terms_temp2
+                        # if only one valid term
+                        if len(flags_index) == 1:
+                            terms_temp1 = terms[flags_index[0]]
+                            return terms_temp1
+                        else:
+                            terms_temp1 = list(itemgetter(*flags_index)(terms))
+                            scores = [re.findall(r"^\d+", each)
+                                      for each in terms_temp1]
+                            # remove empty scores
+                            scores = list(filter(None, scores))
+                            scores = [each[0] for each in scores]
+                            max_index = [index for index, value in enumerate(
+                                scores) if value == max(scores)]
+                            terms_temp2 = itemgetter(*max_index)(terms_temp1)
+                            return terms_temp2
 
     # HDI annotation process
     # get HDI content annotated using MM
@@ -311,45 +315,46 @@ class main(object):
     # @types: semantic types
 
     def findQualified(self, terms, types):
-        # if there is only one term
-        if len(terms) == 1:
-            s = terms[0]
-            patterns = re.findall(r'\[(.*?)\]', s)
-            patterns = self.getSplit(patterns)
-            if self.isSubset(patterns, types):
-                print(s)
-                return s
+        # if no MM output
+        if terms is None:
+            return " "
         else:
-            patterns = [re.findall(r'\[(.*?)\]', s) for s in terms]
-            if not patterns:
-                pass
-            else:
+            # if there is only one term
+            if len(terms) == 1:
+                s = terms[0]
+                patterns = re.findall(r'\[(.*?)\]', s)
                 patterns = self.getSplit(patterns)
-                flags = [self.isSubset(each, types) for each in patterns]
-                flags_index = [index for index,
-                               value in enumerate(flags) if value]
-                # if none of the terms have required semantic types
-                if not flags_index:
-                    print("no valid annotated terms")
-                    return " "
+                if self.isSubset(patterns, types):
+                    return s
+            else:
+                patterns = [re.findall(r'\[(.*?)\]', s) for s in terms]
+                if not patterns:
+                    print("no such item")
                 else:
-                    # if only one valid term
-                    if len(flags_index) == 1:
-                        terms_temp1 = terms[flags_index[0]]
-                        print(terms_temp1)
-                        return terms_temp1
+                    patterns = self.getSplit(patterns)
+                    flags = [self.isSubset(each, types) for each in patterns]
+                    flags_index = [index for index,
+                                   value in enumerate(flags) if value]
+                    # if none of the terms have required semantic types
+                    if not flags_index:
+                        print("no valid annotated terms")
+                        return " "
                     else:
-                        terms_temp1 = list(itemgetter(*flags_index)(terms))
-                        scores = [re.findall(r"^\d+", each)
-                                  for each in terms_temp1]
-                        # remove empty scores
-                        scores = list(filter(None, scores))
-                        scores = [each[0] for each in scores]
-                        max_index = [index for index, value in enumerate(
-                            scores) if value == max(scores)]
-                        terms_temp2 = itemgetter(*max_index)(terms_temp1)
-                        print(terms_temp2)
-                        return terms_temp2
+                        # if only one valid term
+                        if len(flags_index) == 1:
+                            terms_temp1 = terms[flags_index[0]]
+                            return terms_temp1
+                        else:
+                            terms_temp1 = list(itemgetter(*flags_index)(terms))
+                            scores = [re.findall(r"^\d+", each)
+                                      for each in terms_temp1]
+                            # remove empty scores
+                            scores = list(filter(None, scores))
+                            scores = [each[0] for each in scores]
+                            max_index = [index for index, value in enumerate(
+                                scores) if value == max(scores)]
+                            terms_temp2 = itemgetter(*max_index)(terms_temp1)
+                            return terms_temp2
 
     # PU process helper
     # @output: MM output
@@ -415,29 +420,50 @@ class main(object):
     def conProcess(self, name, con, mm, output_file):
         data = {}
         data["name"] = name
-        content = self.remove(con.split("\n"))
         con_types = self.readTypes("CON")
-        # if con is empty
-        if not content:
-            data["CON"] = " "
-            data["annotated_CON"] = " "
-        else:
-            anno_terms = []
-            if isinstance(content, list):
-                for each in content:
-                    command = mm.getComm(each, relax=False)
+        if isinstance(con, list):
+            content = self.remove(con)
+            for each in content:
+                if not each:
+                    data["CON"] = " "
+                    data["annotated_CON"] = " "
+                else:
+                    anno_terms = []
+                if isinstance(content, list):
+                    for each in content:
+                        command = mm.getComm(each, relax=False)
+                        output = mm.getAnnNoOutput(command).decode("utf-8")
+                        anno_terms.append(
+                            self.CONoutputHelper(output, con_types))
+                else:
+                    command = mm.getComm(content, relax=False)
                     output = mm.getAnnNoOutput(command).decode("utf-8")
-                    print(output)
                     anno_terms.append(self.CONoutputHelper(output, con_types))
+                anno_terms = list(filter(None, anno_terms))
+                data["PU"] = content
+                data["annotated_PU"] = anno_terms
+                self.writeContent(output_file, data)
+        else:
+            content = self.remove(con.split("\n"))
+            # if con is empty
+            if not content:
+                data["CON"] = " "
+                data["annotated_CON"] = " "
             else:
-                command = mm.getComm(content, relax=False)
-                output = mm.getAnnNoOutput(command).decode("utf-8")
-                print(output)
-                anno_terms.append(self.CONoutputHelper(output, con_types))
-            anno_terms = list(filter(None, anno_terms))
-            data["PU"] = content
-            data["annotated_PU"] = anno_terms
-            self.writeContent(output_file, data)
+                anno_terms = []
+                if isinstance(content, list):
+                    for each in content:
+                        command = mm.getComm(each, relax=False)
+                        output = mm.getAnnNoOutput(command).decode("utf-8")
+                        print(self.CONoutputHelper(output, con_types))
+                else:
+                    command = mm.getComm(content, relax=False)
+                    output = mm.getAnnNoOutput(command).decode("utf-8")
+                    print(self.CONoutputHelper(output, con_types))
+                anno_terms = list(filter(None, anno_terms))
+                data["PU"] = content
+                data["annotated_PU"] = anno_terms
+                self.writeContent(output_file, data)
 
     # read MM type file
     # @fun: annotation section names, i.e. PU, HDI
@@ -477,6 +503,7 @@ class main(object):
                 con_types = con_types["tui"].values.tolist()
                 con = full_types.loc[full_types["tui"].isin(con_types)]
                 return con["types"].values.tolist()
+
     # read the herb file
 
     def readFile(self):
@@ -490,7 +517,6 @@ class main(object):
                 herb = json.loads(line)
                 if herb["name"] in self.overlap_herbs:
                     print(herb["name"])
-                    '''
                     # HDI
                     self.HDIprcess(
                         herb["name"], herb["herb-drug_interactions"], mm,
@@ -501,30 +527,73 @@ class main(object):
                     # PU
                     self.PUProcess(
                         herb["name"], herb["purported_uses"], mm, "overlap_pu.tsv")
-                    '''
                     self.conProcess(
                         herb["name"], herb["contraindications"], mm, "overlap_con.tsv")
-                    break
                 else:
                     pass
-    # test function
+    # merge all overlap annotated files
 
-    def test(self):
-        mm = umlsAnn()
-        mm.start()
+    def mergeAll(self):
+        overlap_hdi = pd.read_csv(os.path.join(self.file_location,
+                                               "overlap_hdi.tsv"), header=None, sep="\t")
+        overlap_hdi.columns = ["name", "HDI", "annotated_HDI"]
+        overlap_adr = pd.read_csv(os.path.join(self.file_location,
+                                               "overlap_adr.tsv"), header=None, sep="\t")
+        overlap_adr.columns = ["name", "ADR", "annotated_ADR"]
+        overlap_con = pd.read_csv(os.path.join(self.file_location,
+                                               "overlap_con.tsv"), header=None, sep="\t")
+        overlap_con.columns = ["name", "CON", "annotated_CON"]
+        overlap_pu = pd.read_csv(os.path.join(self.file_location,
+                                              "overlap_pu.tsv"), header=None, sep="\t")
+        overlap_pu.columns = ["name", "PU", "annotated_PU"]
+        overlap_hdi["ADR"] = overlap_adr["ADR"].values.tolist()
+        overlap_hdi["annotated_HDI"] = overlap_adr["annotated_ADR"].values.tolist()
+        overlap_hdi["PU"] = overlap_pu["PU"].values.tolist()
+        overlap_hdi["annotated_PU"] = overlap_pu["annotated_PU"].values.tolist()
+
+        # remove duplicate records
+        removed_index = [5, 10, 17, 22, 23]
+        con = overlap_con["CON"].values.tolist()
+        anno_con = overlap_con["annotated_CON"]
+        removed_anno_con = [value for index, value in enumerate(
+            anno_con) if index not in removed_index]
+        removed_con = [value for index, value in enumerate(
+            con) if index not in removed_index]
+        overlap_hdi["CON"] = removed_con
+        overlap_hdi["annotated_CON"] = removed_anno_con
+
+        overlap_rest = pd.read_csv(os.path.join(self.file_location,
+                                                "overlap_rest.tsv"), header=None, sep="\t")
+        overlap_rest.columns = ['name', 'last_updated', 'common_name', 'scientific_name',
+                                'warnings', 'clinical_summary', 'food_sources', 'mechanism_of_action']
+        full = overlap_hdi.merge(overlap_rest, on="name")
+
+        full.to_csv(os.path.join(self.file_location,
+                                 "overlap_mskccV150.tsv"), index=False, sep="\t")
+
+    # read the rest of headers and content
+
+    def readRest(self):
         with open(os.path.join(self.file_location, self.read_file), "r") as f:
             for line in f:
                 herb = json.loads(line)
+                data = {}
                 if herb["name"] in self.overlap_herbs:
-                    print(herb["name"])
-                    print(herb["contraindications"])
+                    data["name"] = herb["name"]
+                    for each in self.headers:
+                        data[each] = herb[each]
+                    with open(os.path.join(self.file_location, "overlap_rest.tsv"), "a") as output:
+                        w = csv.writer(output, delimiter="\t")
+                        w.writerow([v for v in data.values()])
 
     # main function
 
     def run(self):
         # self.readTypes()
-        self.readFile()
+        # self.readFile()
         # self.test()
+        self.mergeAll()
+        # self.readRest()
 
 
 if __name__ == "__main__":

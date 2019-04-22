@@ -256,18 +256,22 @@ class main(object):
                 for each in content:
                     command = mm.getComm(each, additional=" --term_processing")
                     output = mm.getAnnNoOutput(command).decode("utf-8")
+                    print(output)
                     anno = self.HDIoutputHelper(output, hdi_types)
+                    print(anno)
                     anno_terms.append(anno)
 
             else:
                 command = mm.getComm(content, additional=" --term_processing")
                 output = mm.getAnnNoOutput(command).decode("utf-8")
+                print(output)
                 anno = self.HDIoutputHelper(output, hdi_types)
+                print(anno)
                 anno_terms.append(anno)
             anno_terms = list(filter(None, anno_terms))
             data["HDI"] = content
             data["annotated_HDI"] = anno_terms
-        self.writeContent(output_file, data)
+        # self.writeContent(output_file, data)
 
     # AR annotation process
     # get AR content annotated using MEDDRA
@@ -521,6 +525,8 @@ class main(object):
                     self.HDIprcess(
                         herb["name"], herb["herb-drug_interactions"], mm,
                         "overlap_hdi.tsv")
+                    break
+                    '''
                     # ADR
                     self.ADRprocess(
                         herb["name"], herb["adverse_reactions"], meddra, "overlap_adr.tsv")
@@ -529,6 +535,7 @@ class main(object):
                         herb["name"], herb["purported_uses"], mm, "overlap_pu.tsv")
                     self.conProcess(
                         herb["name"], herb["contraindications"], mm, "overlap_con.tsv")
+                    '''
                 else:
                     pass
     # merge all overlap annotated files
@@ -547,7 +554,7 @@ class main(object):
                                               "overlap_pu.tsv"), header=None, sep="\t")
         overlap_pu.columns = ["name", "PU", "annotated_PU"]
         overlap_hdi["ADR"] = overlap_adr["ADR"].values.tolist()
-        overlap_hdi["annotated_HDI"] = overlap_adr["annotated_ADR"].values.tolist()
+        overlap_hdi["annotated_ADR"] = overlap_adr["annotated_ADR"].values.tolist()
         overlap_hdi["PU"] = overlap_pu["PU"].values.tolist()
         overlap_hdi["annotated_PU"] = overlap_pu["annotated_PU"].values.tolist()
 
@@ -590,9 +597,9 @@ class main(object):
 
     def run(self):
         # self.readTypes()
-        # self.readFile()
+        self.readFile()
         # self.test()
-        self.mergeAll()
+        # self.mergeAll()
         # self.readRest()
 
 

@@ -126,7 +126,7 @@ class main(object):
             # if has a single max score
             if len(temp_term1) == 1:
                 if isinstance(temp_term1, tuple):
-                    return temp_term1[0]
+                    return list(Counter(temp_term1).keys())
                 else:
                     return temp_term1
             else:
@@ -136,7 +136,7 @@ class main(object):
                 # if all terms have same number of semantic types
                 if len(set(lens)) == 1:
                     if isinstance(temp_term1, tuple):
-                        return temp_term1[0]
+                        return list(Counter(temp_term1).keys())
                     else:
                         return temp_term1
                 else:
@@ -274,13 +274,20 @@ class main(object):
                     command = mm.getComm(each, additional=" --term_processing")
                     output = mm.getAnnNoOutput(command).decode("utf-8")
                     anno = self.outputHelper(output, hdi_types, self.getSplitHDI)
-                    anno_terms.append(anno)
+                    if isinstance(anno, list):
+                        anno_terms.extend(anno)
+                    else:
+                        anno_terms.append(anno)
+
 
             else:
                 command = mm.getComm(content, additional=" --term_processing")
                 output = mm.getAnnNoOutput(command).decode("utf-8")
                 anno = self.outputHelper(output, hdi_types, self.getSplitHDI)
-                anno_terms.append(anno)
+                if isinstance(anno, list):
+                    anno_terms.extend(anno)
+                else:
+                    anno_terms.append(anno)
             if not anno_terms:
                 data["HDI"] = content
                 data["annotated_HDI"] = " "
@@ -337,11 +344,19 @@ class main(object):
                 for each in content:
                     command = mm.getComm(each, additional=" --term_processing")
                     output = mm.getAnnNoOutput(command).decode("utf-8")
-                    anno_terms.append(self.outputHelper(output, pu_types, self.getSplit))
+                    anno = self.outputHelper(output, pu_types, self.getSplit)
+                    if isinstance(anno, list):
+                        anno_terms.extend(anno)
+                    else:
+                        anno_terms.append(anno)
             else:
                 command = mm.getComm(content, additional=" --term_processing")
                 output = mm.getAnnNoOutput(command).decode("utf-8")
-                anno_terms.append(self.outputHelper(output, pu_types, self.getSplit))
+                anno = self.outputHelper(output, pu_types, self.getSplit)
+                if isinstance(anno, list):
+                    anno_terms.extend(anno)
+                else:
+                    anno_terms.append(anno)
             if not anno_terms:
                 data["HDI"] = content
                 data["annotated_HDI"] = " "
@@ -375,12 +390,20 @@ class main(object):
                         for each in content:
                             command = mm.getComm(each, relax=False)
                             output = mm.getAnnNoOutput(command).decode("utf-8")
-                            anno_terms.append(
-                                self.outputHelper(output, con_types, self.getSplit))
+                            anno = self.outputHelper(output, con_types, self.getSplit)
+                            if isinstance(anno, list):
+                                anno_terms.extend(anno)
+                            else:
+                                anno_terms.append(anno)
+                            
                     else:
                         command = mm.getComm(content, relax=False)
                         output = mm.getAnnNoOutput(command).decode("utf-8")
-                        anno_terms.append(self.outputHelper(output, con_types, self.getSplit))
+                        anno = self.outputHelper(output, con_types, self.getSplit)
+                        if isinstance(anno, list):
+                            anno_terms.extend(anno)
+                        else:
+                            anno_terms.append(anno)
                     if not anno_terms:
                         data["HDI"] = content
                         data["annotated_HDI"] = " "
@@ -402,11 +425,19 @@ class main(object):
                     for each in content:
                         command = mm.getComm(each, relax=False)
                         output = mm.getAnnNoOutput(command).decode("utf-8")
-                        anno_terms.append(self.outputHelper(output, con_types, self.getSplit))
+                        anno = self.outputHelper(output, con_types, self.getSplit)
+                        if isinstance(anno, list):
+                            anno_terms.extend(anno)
+                        else:
+                            anno_terms.append(anno)
                 else:
                     command = mm.getComm(content, relax=False)
                     output = mm.getAnnNoOutput(command).decode("utf-8")
-                    anno_terms.append(self.outputHelper(output, con_types, self.getSplit))
+                    anno = self.outputHelper(output, con_types, self.getSplit)
+                    if isinstance(anno, list):
+                        anno_terms.extend(anno)
+                    else:
+                        anno_terms.append(anno)
                 if not anno_terms:
                     data["HDI"] = content
                     data["annotated_HDI"] = " "
@@ -527,7 +558,7 @@ class main(object):
                                 'warnings', 'clinical_summary', 'food_sources', 'mechanism_of_action']
         full = overlap_hdi.merge(overlap_rest, on="name")
         full.to_csv(os.path.join(self.file_location,
-                                 "overlap_mskccV151.tsv"), index=False, sep="\t")
+                                 "overlap_mskccV152.tsv"), index=False, sep="\t")
         
     # read the rest of headers and content
 
@@ -553,7 +584,7 @@ class main(object):
         with open(os.path.join(self.file_location, self.read_file), "r") as f:
             for line in f:
                 herb = json.loads(line)
-                if herb["name"] == "Ginkgo":
+                if herb["name"] in self.overlap_herbs:
                     # HDI
                     
                     print("working on HDI annotation")

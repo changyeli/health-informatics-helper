@@ -87,62 +87,96 @@ class main(object):
     # return a list of annotated terms
 
     def selectChunks(self, output):
-        mm_index = [index for index, value in enumerate(
-            output) if value.startswith("Meta Mapping")]
-        # if no MM output
-        if not mm_index:
-            pass
-        else:
-            # find every two index as chunk
-            # only has one annotated term
-            if len(mm_index) == 1:
-                annotated_terms = output[mm_index[0] + 1:]
-                # remove empty string from the list
-                annotated_terms = list(filter(None, annotated_terms))
-                annotated_terms = [each.lstrip() for each in annotated_terms]
-                return(annotated_terms)
-            else:
-                chunk = []
-                for v, w in zip(mm_index[:-1], mm_index[1:]):
-                    chunk.append([v, w])
-                # if only has one pair
-                if len(chunk) == 1:
-                    chunk = chunk[0]
-                    annotated_terms = []
-                    terms = output[chunk[0] + 1:chunk[1]]
-                    annotated_terms.extend(terms)
-                    terms = output[chunk[1] + 1:]
-                    annotated_terms.extend(terms)
-                    annotated_terms = list(filter(None, annotated_terms))
-                    annotated_terms = [each.lstrip()
-                                       for each in annotated_terms]
-                    return annotated_terms
-                else:
-                    annotated_terms = []
-                    for each in chunk:
-                        try:
-                            terms = output[each[0] + 1:each[1]]
-                            terms = list(filter(None, terms))
-                            terms = [each.lstrip() for each in terms]
-                            annotated_terms.extend(terms)
-                        except IndexError:
-                            terms = output[each[0] + 1:]
-                            terms = list(filter(None, terms))
-                            terms = [each.lstrip() for each in terms]
-                            annotated_terms.extend(terms)
-                    return(annotated_terms)
+        chunk = [each for each in output if not each.startswith("Processing")]
+        chunk = [each for each in chunk if not each.startswith("Phrase")]
+        chunk = [each for each in chunk if not each.startswith("Meta Mapping")]
+        chunk = list(filter(None, chunk))
+        chunk = [each.lstrip() for each in chunk]
+        chunk = [each for each in chunk if each != " "]
+        return chunk
 
-    # output selection main function
-    # @output: MM output, in string format
+    # flatten nested list
+    # @patterns: nested list, extracted suing re.findall(r'\[(.*?)\]', s)
+    # return unique flattened list
+    def flatten(self, patterns):
+        # check if the list is nested
+        if all(isinstance(i, list) for i in patterns):
+            patterns = [item for sublist in patterns for item in sublist]
+            patterns = list(set(patterns))
+            patterns = list(filter(None, patterns))
+            return patterns
+        else:
+            return patterns
+
+    # select term with max score
+    # if has the same max score, select the term with more semantic types
+    # @terms: a list of output from self.limit() function
     # return qualified terms
 
-    def HDIoutputHelper(self, output, types):
-        # remove first line
-        output = output.split("\n")[1:]
-        # find index of line starting with "Meta Mapping ()"
-        terms = self.selectChunks(output)
-        anno = self.findHDIQualified(terms, types)
-        return anno
+    def qualified(self, terms):
+        # if current term is empty, i.e. last few lines in MM output
+        if not terms:
+            return " "
+        else:
+            scores = [re.findall(r"^\d+", each) for each in terms]
+            scores = [each[0] for each in scores]
+            max_index = [index for index, value in enumerate(
+                                    scores) if value == max(scores)]
+            temp_term1 = itemgetter(*max_index)(terms)
+            # if has a single max score
+            if len(temp_term1) == 1:
+                if isinstance(temp_term1, tuple):
+                    return temp_term1[0]
+                else:
+                    return temp_term1
+            else:
+                # find term with most number of semantic types
+                patterns = [re.findall(r'\[(.*?)\]', each) for each in temp_term1]
+                lens = [len(each) for each in patterns]
+                # if all terms have same number of semantic types
+                if len(set(lens)) == 1:
+                    if isinstance(temp_term1, tuple):
+                        return temp_term1[0]
+                    else:
+                        return temp_term1
+                else:
+                    max_len = [index for index, value in enumerate(
+                                    lens) if value == max(lens)]
+                    final_term = itemgetter(*max_len)(temp_term1)
+                    return final_term
+        
+    # get MM chunks that have required semantic types
+    # @output: MM output
+    # @types: required semantic types, in list format
+    # @splitFunction: the function to split MM semantic types
+
+    def limit(self, chunks, types, splitFunction):
+        # if there is no such MM output
+        if not chunks:
+            print("No valid MM output chunk")
+            return " "
+        else:
+            # if there is only one term in the chunk
+            if len(chunks) == 1:
+                s = chunks[0]
+                patterns = re.findall(r'\[(.*?)\]', s)
+                patterns = splitFunction(patterns)
+                #patterns = self.flatten(patterns)
+                # check if the annotated term has required semantic types
+                if self.isSubset(patterns, types):
+                    return s
+                else:
+                    print("no terms match required semantic types")
+            # if there are multiple terms in the chunk
+            else:
+                qualified_terms = []
+                for each in chunks:
+                    patterns = re.findall(r'\[(.*?)\]', each)
+                    patterns = splitFunction(patterns)
+                    #patterns = self.flatten(patterns)
+                    if self.isSubset(patterns, types):
+                        qualified_terms.append(each)
+                return qualified_terms
 
     # split semantic types string into list
     # specifically for HDI content
@@ -180,57 +214,40 @@ class main(object):
                 res.extend(each.split(","))
         return res
 
-    # find qualified terms
-    # select term in
-    # select term with max score
-    # if has the same max score, select the term with more semantic types
-    # @terms: MM output chunk
-    # @types: semantic types
-    # return single qualified string
+    # split semantic type into list
+    # @patterns: extracted semantic types
+    # return split patterns
 
-    def findHDIQualified(self, terms, types):
-        # if there is no such term
-        if terms is None:
-            return " "
+    def getSplit(self, patterns):
+        patterns = list(filter(None, patterns))
+        if len(patterns) == 1:
+            return patterns
         else:
-            # if there is only one term in the chunk
-            if len(terms) == 1:
-                s = terms[0]
-                patterns = re.findall(r'\[(.*?)\]', s)
-                patterns = self.getSplitHDI(patterns)
-                # check if the annotated term has required semantic types
-                if self.isSubset(patterns, types):
-                    return s
-            # if there are multiple terms in the chunk
-            else:
-                patterns = [re.findall(r'\[(.*?)\]', s) for s in terms]
-                if not patterns:
-                    return " "
+            new_patterns = []
+            for each in patterns:
+                if isinstance(each, list):
+                    new_patterns.append(each[0])
                 else:
-                    patterns = self.getSplitHDI(patterns)
-                    flags = [self.isSubset(each, types) for each in patterns]
-                    flags_index = [index for index,
-                                   value in enumerate(flags) if value]
-                    # if none of the terms have required semantic types
-                    if not flags_index:
-                        print("no valid annotated terms")
-                        return " "
-                    else:
-                        # if only one valid term
-                        if len(flags_index) == 1:
-                            terms_temp1 = terms[flags_index[0]]
-                            return terms_temp1
-                        else:
-                            terms_temp1 = list(itemgetter(*flags_index)(terms))
-                            scores = [re.findall(r"^\d+", each)
-                                      for each in terms_temp1]
-                            # remove empty scores
-                            scores = list(filter(None, scores))
-                            scores = [each[0] for each in scores]
-                            max_index = [index for index, value in enumerate(
-                                scores) if value == max(scores)]
-                            terms_temp2 = itemgetter(*max_index)(terms_temp1)
-                            return terms_temp2
+                    new_patterns.append(each)
+            return new_patterns
+
+    # output selection main function
+    # @output: MM output, in string format
+    # @splitFun: split function for MM output semantic types
+    # return qualified terms
+
+    def outputHelper(self, output, types, splitFun):
+        # remove first line
+        output = output.split("\n")[1:]
+        # find index of line starting with "Meta Mapping ()"
+        chunks = self.selectChunks(output)
+        terms = self.limit(chunks, types, splitFun)
+        if isinstance(terms, str):
+            return terms
+        elif isinstance(terms, list):
+            return self.qualified(terms)
+        else:
+            return " "
 
     # HDI annotation process
     # get HDI content annotated using MM
@@ -256,22 +273,23 @@ class main(object):
                 for each in content:
                     command = mm.getComm(each, additional=" --term_processing")
                     output = mm.getAnnNoOutput(command).decode("utf-8")
-                    print(output)
-                    anno = self.HDIoutputHelper(output, hdi_types)
-                    print(anno)
+                    anno = self.outputHelper(output, hdi_types, self.getSplitHDI)
                     anno_terms.append(anno)
 
             else:
                 command = mm.getComm(content, additional=" --term_processing")
                 output = mm.getAnnNoOutput(command).decode("utf-8")
-                print(output)
-                anno = self.HDIoutputHelper(output, hdi_types)
-                print(anno)
+                anno = self.outputHelper(output, hdi_types, self.getSplitHDI)
                 anno_terms.append(anno)
-            anno_terms = list(filter(None, anno_terms))
-            data["HDI"] = content
-            data["annotated_HDI"] = anno_terms
-        # self.writeContent(output_file, data)
+            if not anno_terms:
+                data["HDI"] = content
+                data["annotated_HDI"] = " "
+            else:
+                anno_terms = list(filter(None, anno_terms))
+                anno_terms = [each for each in anno_terms if each != " "]
+                data["HDI"] = content
+                data["annotated_HDI"] = self.concate(anno_terms, "\n")
+        self.writeContent(output_file, data)
 
     # AR annotation process
     # get AR content annotated using MEDDRA
@@ -296,81 +314,6 @@ class main(object):
             data["annotated_ADR"] = res
         self.writeContent(output_file, data)
 
-    # split semantic type into list
-    # @patterns: extracted semantic types
-    # return split patterns
-
-    def getSplit(self, patterns):
-        patterns = list(filter(None, patterns))
-        if len(patterns) == 1:
-            return patterns
-        else:
-            new_patterns = []
-            for each in patterns:
-                if isinstance(each, list):
-                    new_patterns.append(each[0])
-                else:
-                    new_patterns.append(each)
-            return new_patterns
-
-    # find qualified terms
-    # follow the same rules under findHDIQualified() function
-    # @terms: MM output chunk
-    # @types: semantic types
-
-    def findQualified(self, terms, types):
-        # if no MM output
-        if terms is None:
-            return " "
-        else:
-            # if there is only one term
-            if len(terms) == 1:
-                s = terms[0]
-                patterns = re.findall(r'\[(.*?)\]', s)
-                patterns = self.getSplit(patterns)
-                if self.isSubset(patterns, types):
-                    return s
-            else:
-                patterns = [re.findall(r'\[(.*?)\]', s) for s in terms]
-                if not patterns:
-                    print("no such item")
-                else:
-                    patterns = self.getSplit(patterns)
-                    flags = [self.isSubset(each, types) for each in patterns]
-                    flags_index = [index for index,
-                                   value in enumerate(flags) if value]
-                    # if none of the terms have required semantic types
-                    if not flags_index:
-                        print("no valid annotated terms")
-                        return " "
-                    else:
-                        # if only one valid term
-                        if len(flags_index) == 1:
-                            terms_temp1 = terms[flags_index[0]]
-                            return terms_temp1
-                        else:
-                            terms_temp1 = list(itemgetter(*flags_index)(terms))
-                            scores = [re.findall(r"^\d+", each)
-                                      for each in terms_temp1]
-                            # remove empty scores
-                            scores = list(filter(None, scores))
-                            scores = [each[0] for each in scores]
-                            max_index = [index for index, value in enumerate(
-                                scores) if value == max(scores)]
-                            terms_temp2 = itemgetter(*max_index)(terms_temp1)
-                            return terms_temp2
-
-    # PU process helper
-    # @output: MM output
-    # @types: required semantic types
-    # return qualified terms
-
-    def PUoutputHelper(self, output, types):
-        output = output.split("\n")
-        # find index of line starting with "Meta Mapping ()"
-        terms = self.selectChunks(output)
-        anno = self.findQualified(terms, types)
-        return anno
 
     # PU annotation process main function
     # get AR content annotated using MetaMap
@@ -394,25 +337,20 @@ class main(object):
                 for each in content:
                     command = mm.getComm(each, additional=" --term_processing")
                     output = mm.getAnnNoOutput(command).decode("utf-8")
-                    anno_terms.append(self.PUoutputHelper(output, pu_types))
+                    anno_terms.append(self.outputHelper(output, pu_types, self.getSplit))
             else:
                 command = mm.getComm(content, additional=" --term_processing")
                 output = mm.getAnnNoOutput(command).decode("utf-8")
-                anno_terms.append(self.PUoutputHelper(output, pu_types))
-            anno_terms = list(filter(None, anno_terms))
-            data["PU"] = content
-            data["annotated_PU"] = anno_terms
-            self.writeContent(output_file, data)
-
-    # contraindications process helper
-    # @output: MM output
-    # @type: required semantic types
-    # return qualified terms
-    def CONoutputHelper(self, output, types):
-        output = output.split("\n")[1:]
-        terms = self.selectChunks(output)
-        anno = self.findQualified(terms, types)
-        return anno
+                anno_terms.append(self.outputHelper(output, pu_types, self.getSplit))
+            if not anno_terms:
+                data["HDI"] = content
+                data["annotated_HDI"] = " "
+            else:
+                anno_terms = list(filter(None, anno_terms))
+                anno_terms = [each for each in anno_terms if each != " "]
+                data["HDI"] = content
+                data["annotated_HDI"] = self.concate(anno_terms, "\n")
+        self.writeContent(output_file, data)
 
     # contraindications process
     # get contraindications annotated using MetaMap
@@ -433,19 +371,24 @@ class main(object):
                     data["annotated_CON"] = " "
                 else:
                     anno_terms = []
-                if isinstance(content, list):
-                    for each in content:
-                        command = mm.getComm(each, relax=False)
+                    if isinstance(content, list):
+                        for each in content:
+                            command = mm.getComm(each, relax=False)
+                            output = mm.getAnnNoOutput(command).decode("utf-8")
+                            anno_terms.append(
+                                self.outputHelper(output, con_types, self.getSplit))
+                    else:
+                        command = mm.getComm(content, relax=False)
                         output = mm.getAnnNoOutput(command).decode("utf-8")
-                        anno_terms.append(
-                            self.CONoutputHelper(output, con_types))
-                else:
-                    command = mm.getComm(content, relax=False)
-                    output = mm.getAnnNoOutput(command).decode("utf-8")
-                    anno_terms.append(self.CONoutputHelper(output, con_types))
-                anno_terms = list(filter(None, anno_terms))
-                data["PU"] = content
-                data["annotated_PU"] = anno_terms
+                        anno_terms.append(self.outputHelper(output, con_types, self.getSplit))
+                    if not anno_terms:
+                        data["HDI"] = content
+                        data["annotated_HDI"] = " "
+                    else:
+                        anno_terms = list(filter(None, anno_terms))
+                        anno_terms = [each for each in anno_terms if each != " "]
+                        data["HDI"] = content
+                        data["annotated_HDI"] = self.concate(anno_terms, "\n")
                 self.writeContent(output_file, data)
         else:
             content = self.remove(con.split("\n"))
@@ -459,15 +402,20 @@ class main(object):
                     for each in content:
                         command = mm.getComm(each, relax=False)
                         output = mm.getAnnNoOutput(command).decode("utf-8")
-                        print(self.CONoutputHelper(output, con_types))
+                        anno_terms.append(self.outputHelper(output, con_types, self.getSplit))
                 else:
                     command = mm.getComm(content, relax=False)
                     output = mm.getAnnNoOutput(command).decode("utf-8")
-                    print(self.CONoutputHelper(output, con_types))
-                anno_terms = list(filter(None, anno_terms))
-                data["PU"] = content
-                data["annotated_PU"] = anno_terms
-                self.writeContent(output_file, data)
+                    anno_terms.append(self.outputHelper(output, con_types, self.getSplit))
+                if not anno_terms:
+                    data["HDI"] = content
+                    data["annotated_HDI"] = " "
+                else:
+                    anno_terms = list(filter(None, anno_terms))
+                    anno_terms = [each for each in anno_terms if each != " "]
+                    data["HDI"] = content
+                    data["annotated_HDI"] = self.concate(anno_terms, "\n")
+            self.writeContent(output_file, data)
 
     # read MM type file
     # @fun: annotation section names, i.e. PU, HDI
@@ -522,20 +470,21 @@ class main(object):
                 if herb["name"] in self.overlap_herbs:
                     print(herb["name"])
                     # HDI
-                    self.HDIprcess(
-                        herb["name"], herb["herb-drug_interactions"], mm,
-                        "overlap_hdi.tsv")
-                    break
-                    '''
+                    
+                    print("working on HDI annotation")
+                    self.HDIprcess(herb["name"], herb["herb-drug_interactions"], mm,"overlap_hdi.tsv")
+                    
                     # ADR
-                    self.ADRprocess(
-                        herb["name"], herb["adverse_reactions"], meddra, "overlap_adr.tsv")
+                    print("working on AR annotation")
+                    self.ADRprocess(herb["name"], herb["adverse_reactions"], meddra, "overlap_adr.tsv")
                     # PU
-                    self.PUProcess(
-                        herb["name"], herb["purported_uses"], mm, "overlap_pu.tsv")
-                    self.conProcess(
-                        herb["name"], herb["contraindications"], mm, "overlap_con.tsv")
-                    '''
+                    print("working on PU annotation")
+                    self.PUProcess(herb["name"], herb["purported_uses"], mm, "overlap_pu.tsv")
+                    # CON
+
+                    print("working on CON annotation")
+                    self.conProcess(herb["name"], herb["contraindications"], mm, "overlap_con.tsv")
+                
                 else:
                     pass
     # merge all overlap annotated files
@@ -557,7 +506,10 @@ class main(object):
         overlap_hdi["annotated_ADR"] = overlap_adr["annotated_ADR"].values.tolist()
         overlap_hdi["PU"] = overlap_pu["PU"].values.tolist()
         overlap_hdi["annotated_PU"] = overlap_pu["annotated_PU"].values.tolist()
-
+        print(overlap_hdi.shape)
+        print(overlap_con.shape)
+        print(overlap_hdi["name"].values.tolist())
+        print(overlap_con["name"].values.tolist())
         # remove duplicate records
         removed_index = [5, 10, 17, 22, 23]
         con = overlap_con["CON"].values.tolist()
@@ -574,10 +526,9 @@ class main(object):
         overlap_rest.columns = ['name', 'last_updated', 'common_name', 'scientific_name',
                                 'warnings', 'clinical_summary', 'food_sources', 'mechanism_of_action']
         full = overlap_hdi.merge(overlap_rest, on="name")
-
         full.to_csv(os.path.join(self.file_location,
-                                 "overlap_mskccV150.tsv"), index=False, sep="\t")
-
+                                 "overlap_mskccV151.tsv"), index=False, sep="\t")
+        
     # read the rest of headers and content
 
     def readRest(self):
@@ -593,15 +544,28 @@ class main(object):
                         w = csv.writer(output, delimiter="\t")
                         w.writerow([v for v in data.values()])
 
+    # test
+    def test(self):
+        # Ginkgo
+        mm = umlsAnn()
+        mm.start()
+        # get meddra constructor
+        with open(os.path.join(self.file_location, self.read_file), "r") as f:
+            for line in f:
+                herb = json.loads(line)
+                if herb["name"] == "Ginkgo":
+                    # HDI
+                    
+                    print("working on HDI annotation")
+                    self.HDIprcess(herb["name"], herb["herb-drug_interactions"], mm,"overlap_hdi.tsv")
+
     # main function
 
     def run(self):
-        # self.readTypes()
         self.readFile()
-        # self.test()
-        # self.mergeAll()
-        # self.readRest()
-
+        self.readRest()
+        self.mergeAll()
+        #self.test()
 
 if __name__ == "__main__":
     x = main()

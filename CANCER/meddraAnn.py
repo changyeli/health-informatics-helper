@@ -14,6 +14,7 @@ class meddraAnn(object):
     def __init__(self):
         self.meddra = "/annotator?ontologies=http://data.bioontology.org/ontologies/MEDDRA&text="
         self.REST_URL = "http://data.bioontology.org"
+        self.conf = "&longest_only=true&exclude_numbers=false&whole_word_only=true&exclude_synonyms=true "
         self.API_KEY = config.api_key
     # BioPortal login
 
@@ -38,14 +39,14 @@ class meddraAnn(object):
             labels.append(class_details["prefLabel"])
         return labels
     # adverse reactions pre-process
-    # @ar: data["adverse_reactions"]
+    # @ar: datac["adverse_reactions"]
     # return annotated terms
 
     def adrProcess(self, ar):
         # check if exists adverse_reactions section
         if ar:
             ar_annotations = self.auth(
-                self.REST_URL + self.meddra + urllib.parse.quote(ar))
+                self.REST_URL + self.meddra + urllib.parse.quote(ar) + self.conf)
             labels = self.getLabel(ar_annotations)
             return labels
         else:

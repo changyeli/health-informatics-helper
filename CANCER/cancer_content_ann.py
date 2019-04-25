@@ -29,7 +29,7 @@ class main(object):
         # remove "herb-drug_interactions", "adverse_reactions", "purported_uses", "contraindications" for specific pre-processing
         self.headers = ["last_updated", "common_name", "scientific_name",
                         "warnings", "clinical_summary",
-                        "food_sources", "mechanism_of_action"]
+                        "food_sources", "mechanism_of_action", "contraindications"]
     # concate list of string into single string
     # @value: content to be concated
     # @sep: separator, i.e. "\t", "\n", " "
@@ -93,6 +93,7 @@ class main(object):
         chunk = list(filter(None, chunk))
         chunk = [each.lstrip() for each in chunk]
         chunk = [each for each in chunk if each != " "]
+        #chunk = [self.remove(each) for each in chunk]
         return chunk
 
     # flatten nested list
@@ -319,7 +320,8 @@ class main(object):
             res = self.concate(list(Counter(res).keys()), "\n")
             data["ADR"] = ar
             data["annotated_ADR"] = res
-        self.writeContent(output_file, data)
+            print(res)
+        #self.writeContent(output_file, data)
 
 
     # PU annotation process main function
@@ -367,86 +369,6 @@ class main(object):
                 data["annotated_HDI"] = self.concate(anno_terms, "\n")
         self.writeContent(output_file, data)
 
-    # contraindications process
-    # get contraindications annotated using MetaMap
-    # @name: herb name
-    # @con: contraindications content
-    # @mm: MetaMap constructor
-    # @output_file: the local file name to write
-
-    def conProcess(self, name, con, mm, output_file):
-        data = {}
-        data["name"] = name
-        con_types = self.readTypes("CON")
-        if isinstance(con, list):
-            content = self.remove(con)
-            for each in content:
-                if not each:
-                    data["CON"] = " "
-                    data["annotated_CON"] = " "
-                else:
-                    anno_terms = []
-                    if isinstance(content, list):
-                        for each in content:
-                            command = mm.getComm(each, relax=False)
-                            output = mm.getAnnNoOutput(command).decode("utf-8")
-                            anno = self.outputHelper(output, con_types, self.getSplit)
-                            if isinstance(anno, list):
-                                anno_terms.extend(anno)
-                            else:
-                                anno_terms.append(anno)
-                            
-                    else:
-                        command = mm.getComm(content, relax=False)
-                        output = mm.getAnnNoOutput(command).decode("utf-8")
-                        anno = self.outputHelper(output, con_types, self.getSplit)
-                        if isinstance(anno, list):
-                            anno_terms.extend(anno)
-                        else:
-                            anno_terms.append(anno)
-                    if not anno_terms:
-                        data["HDI"] = content
-                        data["annotated_HDI"] = " "
-                    else:
-                        anno_terms = list(filter(None, anno_terms))
-                        anno_terms = [each for each in anno_terms if each != " "]
-                        data["HDI"] = content
-                        data["annotated_HDI"] = self.concate(anno_terms, "\n")
-                self.writeContent(output_file, data)
-        else:
-            content = self.remove(con.split("\n"))
-            # if con is empty
-            if not content:
-                data["CON"] = " "
-                data["annotated_CON"] = " "
-            else:
-                anno_terms = []
-                if isinstance(content, list):
-                    for each in content:
-                        command = mm.getComm(each, relax=False)
-                        output = mm.getAnnNoOutput(command).decode("utf-8")
-                        anno = self.outputHelper(output, con_types, self.getSplit)
-                        if isinstance(anno, list):
-                            anno_terms.extend(anno)
-                        else:
-                            anno_terms.append(anno)
-                else:
-                    command = mm.getComm(content, relax=False)
-                    output = mm.getAnnNoOutput(command).decode("utf-8")
-                    anno = self.outputHelper(output, con_types, self.getSplit)
-                    if isinstance(anno, list):
-                        anno_terms.extend(anno)
-                    else:
-                        anno_terms.append(anno)
-                if not anno_terms:
-                    data["HDI"] = content
-                    data["annotated_HDI"] = " "
-                else:
-                    anno_terms = list(filter(None, anno_terms))
-                    anno_terms = [each for each in anno_terms if each != " "]
-                    data["HDI"] = content
-                    data["annotated_HDI"] = self.concate(anno_terms, "\n")
-            self.writeContent(output_file, data)
 
     # read MM type file
     # @fun: annotation section names, i.e. PU, HDI
@@ -511,10 +433,6 @@ class main(object):
                     # PU
                     print("working on PU annotation")
                     self.PUProcess(herb["name"], herb["purported_uses"], mm, "overlap_pu.tsv")
-                    # CON
-
-                    print("working on CON annotation")
-                    self.conProcess(herb["name"], herb["contraindications"], mm, "overlap_con.tsv")
                 
                 else:
                     pass
@@ -527,9 +445,6 @@ class main(object):
         overlap_adr = pd.read_csv(os.path.join(self.file_location,
                                                "overlap_adr.tsv"), header=None, sep="\t")
         overlap_adr.columns = ["name", "ADR", "annotated_ADR"]
-        overlap_con = pd.read_csv(os.path.join(self.file_location,
-                                               "overlap_con.tsv"), header=None, sep="\t")
-        overlap_con.columns = ["name", "CON", "annotated_CON"]
         overlap_pu = pd.read_csv(os.path.join(self.file_location,
                                               "overlap_pu.tsv"), header=None, sep="\t")
         overlap_pu.columns = ["name", "PU", "annotated_PU"]
@@ -537,20 +452,6 @@ class main(object):
         overlap_hdi["annotated_ADR"] = overlap_adr["annotated_ADR"].values.tolist()
         overlap_hdi["PU"] = overlap_pu["PU"].values.tolist()
         overlap_hdi["annotated_PU"] = overlap_pu["annotated_PU"].values.tolist()
-        print(overlap_hdi.shape)
-        print(overlap_con.shape)
-        print(overlap_hdi["name"].values.tolist())
-        print(overlap_con["name"].values.tolist())
-        # remove duplicate records
-        removed_index = [5, 10, 17, 22, 23]
-        con = overlap_con["CON"].values.tolist()
-        anno_con = overlap_con["annotated_CON"]
-        removed_anno_con = [value for index, value in enumerate(
-            anno_con) if index not in removed_index]
-        removed_con = [value for index, value in enumerate(
-            con) if index not in removed_index]
-        overlap_hdi["CON"] = removed_con
-        overlap_hdi["annotated_CON"] = removed_anno_con
 
         overlap_rest = pd.read_csv(os.path.join(self.file_location,
                                                 "overlap_rest.tsv"), header=None, sep="\t")
@@ -578,25 +479,24 @@ class main(object):
     # test
     def test(self):
         # Ginkgo
-        mm = umlsAnn()
-        mm.start()
+        #mm = umlsAnn()
+        #mm.start()
         # get meddra constructor
+        meddra = meddraAnn()
         with open(os.path.join(self.file_location, self.read_file), "r") as f:
             for line in f:
                 herb = json.loads(line)
                 if herb["name"] in self.overlap_herbs:
-                    # HDI
-                    
-                    print("working on HDI annotation")
-                    self.HDIprcess(herb["name"], herb["herb-drug_interactions"], mm,"overlap_hdi.tsv")
-
+                    # ADR
+                    print("working on AR annotation")
+                    self.ADRprocess(herb["name"], herb["adverse_reactions"], meddra, "overlap_adr.tsv")
     # main function
 
     def run(self):
-        self.readFile()
-        self.readRest()
-        self.mergeAll()
-        #self.test()
+        #self.readFile()
+        #self.readRest()
+        #self.mergeAll()
+        self.test()
 
 if __name__ == "__main__":
     x = main()

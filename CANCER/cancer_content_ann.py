@@ -26,10 +26,10 @@ class main(object):
                               "Turmeric", "Vitamin B12", "Vitamin E", "Vitamin K",
                               "Blue-green Algae", "Folate", "Grape seeds", "Arginine",
                               "5-HTP", "N-Acetylcysteine"]
-        # remove "herb-drug_interactions", "adverse_reactions", "purported_uses", "contraindications" for specific pre-processing
-        self.headers = ["last_updated", "common_name", "scientific_name",
+        # remove "herb-drug_interactions", "adverse_reactions", "purported_uses" for specific pre-processing
+        self.headers = ["contraindications", "last_updated", "common_name", "scientific_name",
                         "warnings", "clinical_summary",
-                        "food_sources", "mechanism_of_action", "contraindications"]
+                        "food_sources", "mechanism_of_action"]
     # concate list of string into single string
     # @value: content to be concated
     # @sep: separator, i.e. "\t", "\n", " "
@@ -127,7 +127,7 @@ class main(object):
             # if has a single max score
             if len(temp_term1) == 1:
                 if isinstance(temp_term1, tuple):
-                    return list(Counter(temp_term1).keys())
+                    return temp_term1[0]
                 else:
                     return temp_term1
             else:
@@ -137,7 +137,7 @@ class main(object):
                 # if all terms have same number of semantic types
                 if len(set(lens)) == 1:
                     if isinstance(temp_term1, tuple):
-                        return list(Counter(temp_term1).keys())
+                        return temp_term1[0]
                     else:
                         return temp_term1
                 else:
@@ -150,6 +150,7 @@ class main(object):
     # @output: MM output
     # @types: required semantic types, in list format
     # @splitFunction: the function to split MM semantic types
+    # return all qualified MM output
 
     def limit(self, chunks, types, splitFunction):
         # if there is no such MM output
@@ -215,6 +216,26 @@ class main(object):
                 res.extend(each.split(","))
         return res
 
+    # split HDI content with "/" or ","
+    # @content: herb["herb-drug_interacitons"]
+    # return separate HDI content as list
+
+    def SplitContent(self, content):
+        if isinstance(content, list):
+            split_content = []
+            for each in content:
+                if "/" in each:
+                    items = each.split("/")
+                    split_content.extend(items)
+                elif "," in each:
+                    items = each.split(",")
+                    split_content.extend(items)
+                else:
+                    split_content.append(each)
+            return split_content
+        else:
+            return content
+
     # split semantic type into list
     # @patterns: extracted semantic types
     # return split patterns
@@ -231,6 +252,24 @@ class main(object):
                 else:
                     new_patterns.append(each)
             return new_patterns
+
+    # remove item if the item has same name for both herb name and mapping word
+    # for HDI only
+    # @name: herb name, annotated by MetaMap
+    # @anno_terms: final annotated terms returned by self.outputHelper()
+
+    def duplicateHDI(self, name, anno_terms):
+        final_term = []
+        # find the mapping word 
+        for each in anno_terms:
+            res = re.sub(r" ?\([^)]+\)", "", each)
+            res = re.sub(r" \[(.*?)\]", "", res)
+            res = res.split(":")[1]
+            if name.lower() != res.lower():
+                final_term.append(each)
+            else:
+                pass
+        return final_term
 
     # output selection main function
     # @output: MM output, in string format
@@ -261,6 +300,7 @@ class main(object):
         data = {}
         data["name"] = name
         content = self.remove(self.getBefore(hdi))
+        content = self.SplitContent(content)
         # HDI semantic types
         hdi_types = self.readTypes("HDI")
         # if hdi is empty
@@ -275,12 +315,11 @@ class main(object):
                     command = mm.getComm(each, additional=" --term_processing")
                     output = mm.getAnnNoOutput(command).decode("utf-8")
                     anno = self.outputHelper(output, hdi_types, self.getSplitHDI)
+
                     if isinstance(anno, list):
                         anno_terms.extend(anno)
                     else:
                         anno_terms.append(anno)
-
-
             else:
                 command = mm.getComm(content, additional=" --term_processing")
                 output = mm.getAnnNoOutput(command).decode("utf-8")
@@ -296,6 +335,7 @@ class main(object):
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]
                 data["HDI"] = content
+                anno_terms = self.duplicateHDI(name, anno_terms)
                 data["annotated_HDI"] = self.concate(anno_terms, "\n")
         self.writeContent(output_file, data)
 
@@ -320,8 +360,8 @@ class main(object):
             res = self.concate(list(Counter(res).keys()), "\n")
             data["ADR"] = ar
             data["annotated_ADR"] = res
-            print(res)
-        #self.writeContent(output_file, data)
+            
+        self.writeContent(output_file, data)
 
 
     # PU annotation process main function
@@ -455,11 +495,11 @@ class main(object):
 
         overlap_rest = pd.read_csv(os.path.join(self.file_location,
                                                 "overlap_rest.tsv"), header=None, sep="\t")
-        overlap_rest.columns = ['name', 'last_updated', 'common_name', 'scientific_name',
-                                'warnings', 'clinical_summary', 'food_sources', 'mechanism_of_action']
+        columns = ["name"] + self.headers
+        overlap_rest.columns = columns
         full = overlap_hdi.merge(overlap_rest, on="name")
         full.to_csv(os.path.join(self.file_location,
-                                 "overlap_mskccV152.tsv"), index=False, sep="\t")
+                                 "overlap_mskccV153.tsv"), index=False, sep="\t")
         
     # read the rest of headers and content
 
@@ -479,24 +519,24 @@ class main(object):
     # test
     def test(self):
         # Ginkgo
-        #mm = umlsAnn()
-        #mm.start()
+        mm = umlsAnn()
+        mm.start()
         # get meddra constructor
         meddra = meddraAnn()
         with open(os.path.join(self.file_location, self.read_file), "r") as f:
             for line in f:
                 herb = json.loads(line)
                 if herb["name"] in self.overlap_herbs:
-                    # ADR
-                    print("working on AR annotation")
-                    self.ADRprocess(herb["name"], herb["adverse_reactions"], meddra, "overlap_adr.tsv")
+                    print("working on HDI annotation")
+                    self.HDIprcess(herb["name"], herb["herb-drug_interactions"], mm,"overlap_hdi.tsv")
+                    break
     # main function
 
     def run(self):
-        #self.readFile()
-        #self.readRest()
-        #self.mergeAll()
-        self.test()
+        self.readFile()
+        self.readRest()
+        self.mergeAll()
+        #self.test()
 
 if __name__ == "__main__":
     x = main()

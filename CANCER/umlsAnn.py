@@ -418,11 +418,11 @@ class umlsAnn(object):
                 else:
                     anno_terms.append(anno)
             if not anno_terms:
-                data["HDI"] = content
-                data["annotated_HDI"] = " "
+                data["PU"] = content
+                data["annotated_PU"] = " "
             else:
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]
-                data["HDI"] = content
-                data["annotated_HDI"] = self.concate(anno_terms, "\n")
+                data["PU"] = content
+                data["annotated_PU"] = self.concate(anno_terms, "\n")
         return data

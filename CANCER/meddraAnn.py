@@ -8,6 +8,7 @@ import subprocess
 import re
 import csv
 import pickle
+from collections import Counter
 
 
 class meddraAnn(object):
@@ -38,6 +39,31 @@ class meddraAnn(object):
                     continue
             labels.append(class_details["prefLabel"])
         return labels
+
+    # remove all non-ASCII characters in the content
+    # remove contents inside of ()
+    # @value: the content needs to be cleaned
+
+    def remove(self, value):
+        if isinstance(value, list):
+            value = [re.sub(r'[^\x00-\x7F]+', " ", each) for each in value]
+            value = [re.sub(r" ?\([^)]+\)", "", each) for each in value]
+            return value
+        else:
+            value = re.sub(r'[^\x00-\x7F]+', " ", value)
+            value = re.sub(r" ?\([^)]+\)", "", value)
+            return value
+    
+    # concate list of string into single string
+    # @value: content to be concated
+    # @sep: separator, i.e. "\t", "\n", " "
+
+    def concate(self, value, sep):
+        if isinstance(value, list):
+            return (sep.join(value))
+        else:
+            return value
+
     # adverse reactions pre-process
     # @ar: datac["adverse_reactions"]
     # return annotated terms
@@ -51,3 +77,26 @@ class meddraAnn(object):
             return labels
         else:
             return " "
+
+    # AR annotation process main function
+    # get AR content annotated using MEDDRA
+    # @name: herb name
+    # @ar: AR content
+    # @meddra: MEDDRA constructor
+    # @output_file: the local file name to write
+
+    def ADRprocess(self, name, ar):
+        data = {}
+        data["name"] = name
+        ar = self.remove(self.concate(ar, " "))
+        # if ar is empty
+        if not ar:
+            data["ADR"] = " "
+            data["annotated_ADR"] = " "
+        else:
+            res = self.adrProcess(ar)
+            res = [x.lower() for x in res]
+            res = self.concate(list(Counter(res).keys()), "\n")
+            data["ADR"] = ar
+            data["annotated_ADR"] = res
+        return data

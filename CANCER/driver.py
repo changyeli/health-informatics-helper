@@ -17,10 +17,13 @@ class driver(object):
 				herb = json.loads(line)
 				name = herb["name"]
 				hdi = herb["herb-drug_interactions"]
+				pu = herb["purported_uses"]
 				mm = umlsAnn(self.location)
 				data = mm.HDIprcess(name, hdi)
+				temp_data = mm.PUProcess(name, pu)
 				print("===============")
 				print(data)
+				print(temp_data)
 				print("===============")
 	def run(self):
 		self.readFile()

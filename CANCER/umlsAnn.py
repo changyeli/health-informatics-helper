@@ -6,8 +6,8 @@ import re
 # get UMLS annotation for HDI, contradictions and purposed uses
 
 
-class umlsAnn(object, location):
-    def __init__(self):
+class umlsAnn(object):
+    def __init__(self, location):
         # MetaMap location
         #self.location = "/Users/Changye/Documents/workspace/public_mm"
         self.location = location
@@ -170,6 +170,27 @@ class umlsAnn(object, location):
                     new_patterns.append(each)
             return new_patterns
 
+    # split HDI content with "/" or ","
+    # @content: herb["herb-drug_interacitons"]
+    # return separate HDI content as list
+
+    def SplitContent(self, content):
+        if isinstance(content, list):
+            split_content = []
+            for each in content:
+                if "/" in each:
+                    items = each.split("/")
+                    split_content.extend(items)
+                elif "," in each:
+                    items = each.split(",")
+                    split_content.extend(items)
+                else:
+                    split_content.append(each)
+            return split_content
+        else:
+            return content
+
+
     # get MM chunks that have required semantic types
     # @output: MM output
     # @types: required semantic types, in list format
@@ -241,6 +262,24 @@ class umlsAnn(object, location):
                     final_term = itemgetter(*max_len)(temp_term1)
                     return final_term
 
+    # remove item if the item has same name for both herb name and mapping word
+    # for HDI only
+    # @name: herb name, annotated by MetaMap
+    # @anno_terms: final annotated terms returned by self.outputHelper()
+
+    def duplicateHDI(self, name, anno_terms):
+        final_term = []
+        # find the mapping word 
+        for each in anno_terms:
+            res = re.sub(r" ?\([^)]+\)", "", each)
+            res = re.sub(r" \[(.*?)\]", "", res)
+            res = res.split(":")[1]
+            if name.lower() != res.lower():
+                final_term.append(each)
+            else:
+                pass
+        return final_term
+
     # output selection main function
     # @output: MM output, in string format
     # @splitFun: split function for MM output semantic types
@@ -259,12 +298,12 @@ class umlsAnn(object, location):
         else:
             return " "
 
-    #\ read MM type file
+    # read MM type file
     # @fun: annotation section names, i.e. PU, HDI
     # each section will return a list of MM types
 
     def readTypes(self, fun):
-        full_types = pd.read_csv(os.path.join(self.file_location, "mmtypes.txt"),
+        full_types = pd.read_csv(os.path.join(self.path, "mmtypes.txt"),
                                  sep="|", header=None, index_col=False)
         full_types.columns = ["abbrev", "name", "tui", "types"]
         if fun.upper() not in ["HDI", "PU", "CON"]:
@@ -273,7 +312,7 @@ class umlsAnn(object, location):
             # hdi mm types
             if fun.upper() == "HDI":
                 hdi_types = pd.read_csv(
-                    os.path.join(self.file_location, "hdi_types.txt"),
+                    os.path.join(self.path, "hdi_types.txt"),
                     sep="|", header=None, index_col=False)
                 hdi_types.columns = ["group", "group_name", "tui", "types"]
                 hdi_types = hdi_types["tui"].values.tolist()
@@ -282,7 +321,7 @@ class umlsAnn(object, location):
             # pu mm types
             if fun.upper() == "PU":
                 pu_types = pd.read_csv(
-                    os.path.join(self.file_location, "pu_types.txt"),
+                    os.path.join(self.path, "pu_types.txt"),
                     sep="|", header=None, index_col=False)
                 pu_types.columns = ["group", "group_name", "tui", "types"]
                 pu_types = pu_types["tui"].values.tolist()
@@ -291,9 +330,99 @@ class umlsAnn(object, location):
             # con mm types
             if fun.upper() == "CON":
                 con_types = pd.read_csv(
-                    os.path.join(self.file_location, "con_types.txt"),
+                    os.path.join(self.path, "con_types.txt"),
                     sep="|", header=None, index_col=False)
                 con_types.columns = ["group", "group_name", "tui", "types"]
                 con_types = con_types["tui"].values.tolist()
                 con = full_types.loc[full_types["tui"].isin(con_types)]
                 return con["types"].values.tolist()
+
+    # HDI annotation process
+    # @name: herb name
+    # @content: section content for the herb, i.e. herb["drug_herb-interactions"]
+    # get HDI content annotated using MM
+
+    def HDIprcess(self, name, content):
+        data = {}
+        data["name"] = name
+        content = self.remove(self.getBefore(content))
+        content = self.SplitContent(content)
+        # HDI semantic types
+        hdi_types = self.readTypes("HDI")
+        # if hdi is empty
+        if not content:
+            data["HDI"] = " "
+            data["annotated_HDI"] = " "
+        # hdi is not empty
+        else:
+            anno_terms = []
+            if isinstance(content, list):
+                for each in content:
+                    command = self.getComm(each, additional=" --term_processing")
+                    output = self.getAnnNoOutput(command).decode("utf-8")
+                    anno = self.outputHelper(output, hdi_types, self.getSplitHDI)
+
+                    if isinstance(anno, list):
+                        anno_terms.extend(anno)
+                    else:
+                        anno_terms.append(anno)
+            else:
+                command = self.getComm(content, additional=" --term_processing")
+                output = self.getAnnNoOutput(command).decode("utf-8")
+                anno = self.outputHelper(output, hdi_types, self.getSplitHDI)
+                if isinstance(anno, list):
+                    anno_terms.extend(anno)
+                else:
+                    anno_terms.append(anno)
+            if not anno_terms:
+                data["HDI"] = content
+                data["annotated_HDI"] = " "
+            else:
+                anno_terms = list(filter(None, anno_terms))
+                anno_terms = [each for each in anno_terms if each != " "]
+                data["HDI"] = content
+                anno_terms = self.duplicateHDI(name, anno_terms)
+                data["annotated_HDI"] = self.concate(anno_terms, "\n")
+        return data
+    # PU annotation process main function
+    # @name: herb name
+    # @content: section content for the herb, i.e. herb["purposed_uses"]
+    # get AR content annotated using MetaMap
+
+    def PUProcess(self, name, content):
+        data = {}
+        data["name"] = name
+        content = self.remove(content)
+        pu_types = self.readTypes("PU")
+        # if pu is empty
+        if not content:
+            data["PU"] = " "
+            data["annotated_PU"] = " "
+        else:
+            anno_terms = []
+            if isinstance(content, list):
+                for each in content:
+                    command = self.getComm(each, additional=" --term_processing")
+                    output = self.getAnnNoOutput(command).decode("utf-8")
+                    anno = self.outputHelper(output, pu_types, self.getSplit)
+                    if isinstance(anno, list):
+                        anno_terms.extend(anno)
+                    else:
+                        anno_terms.append(anno)
+            else:
+                command = self.getComm(content, additional=" --term_processing")
+                output = self.getAnnNoOutput(command).decode("utf-8")
+                anno = self.outputHelper(output, pu_types, self.getSplit)
+                if isinstance(anno, list):
+                    anno_terms.extend(anno)
+                else:
+                    anno_terms.append(anno)
+            if not anno_terms:
+                data["HDI"] = content
+                data["annotated_HDI"] = " "
+            else:
+                anno_terms = list(filter(None, anno_terms))
+                anno_terms = [each for each in anno_terms if each != " "]
+                data["HDI"] = content
+                data["annotated_HDI"] = self.concate(anno_terms, "\n")
+        return data

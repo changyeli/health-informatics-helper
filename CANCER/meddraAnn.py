@@ -35,8 +35,8 @@ class meddraAnn(object):
                     class_details = self.auth(
                         result["annotatedClass"]["links"]["self"])
                     id = class_details["links"]["self"].split("%")[-1][2:]
-                    ids = str(id) + " " + class_details["prefLabel"]
-                    labels.append(ids)
+                    d = {"term": class_details["prefLabel"].lower(), "id": id, "source_db": "meddra", "original_string": class_details["prefLabel"]}
+                    labels.append(d)
                 except urllib.error.HTTPError:
                     print(f"Error retrieving {result['annotatedClass']['@id']}")
                     continue
@@ -87,7 +87,7 @@ class meddraAnn(object):
     # @meddra: MEDDRA constructor
     # @output_file: the local file name to write
 
-    def ADRprocess(self, name, ar):
+    def main(self, ar):
         data = {}
         ar = self.remove(self.concate(ar, " "))
         # if ar is empty
@@ -96,8 +96,6 @@ class meddraAnn(object):
             data["annotated_ADR"] = " "
         else:
             res = self.adrProcess(ar)
-            res = [x.lower() for x in res]
-            res = self.concate(list(Counter(res).keys()), "\n")
             data["ADR"] = ar
             data["annotated_ADR"] = res
         return data

@@ -288,7 +288,6 @@ class umlsAnn(object):
     def outputHelper(self, output, types, splitFun):
         # remove first line
         output = output.split("\n")[1:]
-        # find index of line starting with "Meta Mapping ()"
         chunks = self.selectChunks(output)
         terms = self.limit(chunks, types, splitFun)
         if isinstance(terms, str):
@@ -328,6 +327,31 @@ class umlsAnn(object):
                 pu = full_types.loc[full_types["tui"].isin(pu_types)]
                 return pu["types"].values.tolist()
 
+    # strcture the output as
+    '''
+    "annotated_ADR": [
+        {"term": dermatitis, "id": 10012431, "source_db": meddra, "original_string": Dermatitis},
+        {"term": nausea, "id": 10028813, "source_db": meddra, "original_string": nausea},
+        ...
+    ]
+    '''
+    # @anno_terms: seletected MM output, in the format of list
+    # return a list of dictionary, in the structure as desribed above
+    def structure(self, anno_terms):
+        better_strcture = []
+        for each in anno_terms:
+            s = each.split(":")
+            # find mapping id
+            ids = s[0].split(" ")[-1]
+            # find mapping word
+            # remove () and [] area
+            res = re.sub(r" ?\([^)]+\)", "", s[1])
+            res = re.sub(r" \[(.*?)\]", "", res)
+            # save the new structure into dict
+            d = {"term": res.lower(), "id": ids, "source_db": "umls", "original_string": each}
+            better_strcture.append(d)
+        return better_strcture
+
     # HDI annotation process
     # @name: herb name
     # @content: section content for the herb, i.e. herb["drug_herb-interactions"]
@@ -351,7 +375,6 @@ class umlsAnn(object):
                     command = self.getComm(each, additional=" --term_processing")
                     output = self.getAnnNoOutput(command).decode("utf-8")
                     anno = self.outputHelper(output, hdi_types, self.getSplitHDI)
-
                     if isinstance(anno, list):
                         anno_terms.extend(anno)
                     else:
@@ -372,7 +395,8 @@ class umlsAnn(object):
                 anno_terms = [each for each in anno_terms if each != " "]
                 data["HDI"] = content
                 anno_terms = self.duplicateHDI(name, anno_terms)
-                data["annotated_HDI"] = anno_terms
+                better_strcture = self.structure(anno_terms)
+                data["annotated_HDI"] = better_strcture
         return data
     # PU annotation process main function
     # @name: herb name
@@ -413,5 +437,6 @@ class umlsAnn(object):
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]
                 data["PU"] = content
-                data["annotated_PU"] = anno_terms
+                better_strcture = self.structure(anno_terms)
+                data["annotated_PU"] = better_strcture
         return data

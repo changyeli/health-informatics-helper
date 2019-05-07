@@ -15,30 +15,39 @@ class driver(object):
 		# remove "herb-drug_interactions", "adverse_reactions", "purported_uses" for specific pre-processing
 		self.headers = ["contraindications", "last_updated", "common_name", "scientific_name", "warnings", "clinical_summary", "food_sources", "mechanism_of_action"]
 	def readFile(self):
+		# start MetaMap server
 		mm = umlsAnn(self.location)
+		mm.start()
 		meddra = meddraAnn()
 		with open(os.path.join(self.path, self.read_file), "r") as f:
 			for line in f:
 				data = {}
 				herb = json.loads(line)
 				name = herb["name"]
+				data["name"] = name
 				# get annotations
 				hdi_content = herb["herb-drug_interactions"]
 				pu_content = herb["purported_uses"]
 				adr_content = herb["adverse_reactions"]
-				adr_data = meddra.ADRprocess(name, adr_content)
+				adr_data = meddra.main(adr_content)
 				hdi_data = mm.HDIprcess(name, hdi_content)
 				pu_data = mm.PUProcess(name, pu_content)
+				data["HDI"] = hdi_data["HDI"]
+				data["annotated_HDI"] = hdi_data["annotated_HDI"]
+				data["PU"] = pu_data["PU"]
+				data["annotated_PU"] = pu_data["annotated_PU"]
+				data["ADR"] = adr_data["ADR"]
+				data["annotated_ADR"] = adr_data["annotated_ADR"]
+				print(data)
+				break
+				'''
 				# write to dict
-				data["name"] = name
-				data.update(hdi_data)
-				data.update(pu_data)
-				data.update(adr_data)
 				# read the remaining headers and their contents
 				for each in self.headers:
 					data[each] = herb[each]
 				# write to local file
-				self.write(data)
+				#self.write(data)
+				'''
 	## write to local file
 	def write(self, data):
 		with open("cancer_ann_data.jsonl", "a") as output:

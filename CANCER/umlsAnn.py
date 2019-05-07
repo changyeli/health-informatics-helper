@@ -306,8 +306,8 @@ class umlsAnn(object):
         full_types = pd.read_csv(os.path.join(self.path, "mmtypes.txt"),
                                  sep="|", header=None, index_col=False)
         full_types.columns = ["abbrev", "name", "tui", "types"]
-        if fun.upper() not in ["HDI", "PU", "CON"]:
-            raise ValueError("Currently only supports HDI, PU and Con.")
+        if fun.upper() not in ["HDI", "PU"]:
+            raise ValueError("Currently only supports HDI and PU")
         else:
             # hdi mm types
             if fun.upper() == "HDI":
@@ -327,15 +327,6 @@ class umlsAnn(object):
                 pu_types = pu_types["tui"].values.tolist()
                 pu = full_types.loc[full_types["tui"].isin(pu_types)]
                 return pu["types"].values.tolist()
-            # con mm types
-            if fun.upper() == "CON":
-                con_types = pd.read_csv(
-                    os.path.join(self.path, "con_types.txt"),
-                    sep="|", header=None, index_col=False)
-                con_types.columns = ["group", "group_name", "tui", "types"]
-                con_types = con_types["tui"].values.tolist()
-                con = full_types.loc[full_types["tui"].isin(con_types)]
-                return con["types"].values.tolist()
 
     # HDI annotation process
     # @name: herb name
@@ -344,7 +335,6 @@ class umlsAnn(object):
 
     def HDIprcess(self, name, content):
         data = {}
-        data["name"] = name
         content = self.remove(self.getBefore(content))
         content = self.SplitContent(content)
         # HDI semantic types
@@ -382,7 +372,7 @@ class umlsAnn(object):
                 anno_terms = [each for each in anno_terms if each != " "]
                 data["HDI"] = content
                 anno_terms = self.duplicateHDI(name, anno_terms)
-                data["annotated_HDI"] = self.concate(anno_terms, "\n")
+                data["annotated_HDI"] = anno_terms
         return data
     # PU annotation process main function
     # @name: herb name
@@ -391,7 +381,6 @@ class umlsAnn(object):
 
     def PUProcess(self, name, content):
         data = {}
-        data["name"] = name
         content = self.remove(content)
         pu_types = self.readTypes("PU")
         # if pu is empty
@@ -424,5 +413,5 @@ class umlsAnn(object):
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]
                 data["PU"] = content
-                data["annotated_PU"] = self.concate(anno_terms, "\n")
+                data["annotated_PU"] = anno_terms
         return data

@@ -34,10 +34,12 @@ class meddraAnn(object):
                 try:
                     class_details = self.auth(
                         result["annotatedClass"]["links"]["self"])
+                    id = class_details["links"]["self"].split("%")[-1][2:]
+                    ids = str(id) + " " + class_details["prefLabel"]
+                    labels.append(ids)
                 except urllib.error.HTTPError:
                     print(f"Error retrieving {result['annotatedClass']['@id']}")
                     continue
-            labels.append(class_details["prefLabel"])
         return labels
 
     # remove all non-ASCII characters in the content
@@ -87,7 +89,6 @@ class meddraAnn(object):
 
     def ADRprocess(self, name, ar):
         data = {}
-        data["name"] = name
         ar = self.remove(self.concate(ar, " "))
         # if ar is empty
         if not ar:

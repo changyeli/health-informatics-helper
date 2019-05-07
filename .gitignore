@@ -22,3 +22,4 @@ CANCER/*.tsv
 NHPID/*.tsv
 CANCER/*.XML
 CANCER/*.xml
+CANCER/*.jsonl

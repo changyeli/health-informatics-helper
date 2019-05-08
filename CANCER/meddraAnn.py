@@ -93,7 +93,7 @@ class meddraAnn(object):
         # if ar is empty
         if not ar:
             data["ADR"] = " "
-            data["annotated_ADR"] = " "
+            data["annotated_ADR"] = {"term": " ", "id": " ", "source_db": "meddra", "original_string": " "}
         else:
             res = self.adrProcess(ar)
             data["ADR"] = ar

@@ -338,105 +338,120 @@ class umlsAnn(object):
     # @anno_terms: seletected MM output, in the format of list
     # return a list of dictionary, in the structure as desribed above
     def structure(self, anno_terms):
-        better_strcture = []
-        for each in anno_terms:
-            s = each.split(":")
-            # find mapping id
-            ids = s[0].split(" ")[-1]
-            # find mapping word
-            # remove () and [] area
-            res = re.sub(r" ?\([^)]+\)", "", s[1])
-            res = re.sub(r" \[(.*?)\]", "", res)
-            # save the new structure into dict
-            d = {"term": res.lower(), "id": ids, "source_db": "umls", "original_string": each}
-            better_strcture.append(d)
-        return better_strcture
-
-    # HDI annotation process
-    # @name: herb name
-    # @content: section content for the herb, i.e. herb["drug_herb-interactions"]
-    # get HDI content annotated using MM
-
-    def HDIprcess(self, name, content):
-        data = {}
-        content = self.remove(self.getBefore(content))
-        content = self.SplitContent(content)
-        # HDI semantic types
-        hdi_types = self.readTypes("HDI")
-        # if hdi is empty
-        if not content:
-            data["HDI"] = " "
-            data["annotated_HDI"] = " "
-        # hdi is not empty
+        # check if anno_terms is empty
+        if not anno_terms:
+            d = {"term": " ", "id": " ", "source_db": "umls", "original_string": " "}
+            return d
         else:
-            anno_terms = []
-            if isinstance(content, list):
-                for each in content:
-                    command = self.getComm(each, additional=" --term_processing")
-                    output = self.getAnnNoOutput(command).decode("utf-8")
-                    anno = self.outputHelper(output, hdi_types, self.getSplitHDI)
-                    if isinstance(anno, list):
-                        anno_terms.extend(anno)
-                    else:
-                        anno_terms.append(anno)
+            better_strcture = []
+            for each in anno_terms:
+                s = each.split(":")
+                # find mapping id
+                ids = s[0].split(" ")[-1]
+                # find mapping word
+                # remove () and [] area
+                res = re.sub(r" ?\([^)]+\)", "", s[1])
+                res = re.sub(r" \[(.*?)\]", "", res)
+                # save the new structure into dict
+                d = {"term": res.lower(), "id": ids, "source_db": "umls", "original_string": each}
+                better_strcture.append(d)
+            return better_strcture
+
+    # annotation with list content process
+    # @name: herb name
+    # @content: section content, in list format
+    # @types: a list of required semantic types
+    # @splitFun: content split function
+    # return a list of annotated terms
+    def listAnn(self, name, content, types, splitFun):
+        anno_terms = []
+        for each in content:
+            command = self.getComm(each, additional = " --term_processing")
+            output = self.getAnnNoOutput(command).decode("utf-8")
+            anno = self.outputHelper(output, types, splitFun)
+            if isinstance(anno, list):
+                anno_terms.extend(anno)
             else:
-                command = self.getComm(content, additional=" --term_processing")
-                output = self.getAnnNoOutput(command).decode("utf-8")
-                anno = self.outputHelper(output, hdi_types, self.getSplitHDI)
-                if isinstance(anno, list):
+                anno_terms.append(anno)
+        return anno_terms
+    
+    # annotation with string content process
+    # @name: herb name
+    # @content: section content, in list format
+    # @types: a list of required semantic types
+    # @splitFun: content split function
+    # return a list of annotated terms
+    def strAnn(self, name, content, types, splitFun):
+        anno_terms = []
+        content = content.split("\n")
+        # if the content cannot be split by newline
+        if len(content) == 1:
+            command = self.getComm(content[0], additional = " --term_processing")
+            output = self.getAnnNoOutput(command).decode("utf-8")
+            anno = self.outputHelper(output, types, splitFun)
+            if isinstance(anno, list):
+                anno_terms.extend(anno)
+            else:
+                anno_terms.append(anno)
+        # there are multiple items in the content
+        else:
+            anno = self.listAnn(name, content, types, splitFun)
+            if isinstance(anno, list):
+                anno_terms.extend(anno)
+            else:
+                anno_terms.append(anno)
+
+    # a new process function for HDI and PU
+    # @name: herb name
+    # @content: section content
+    # @fun: a string to decide which content is to be processed, i.e. "HDI" or "PU"
+    def process(self, name, content, fun):
+        # HDI process
+        if fun.upper() == "HDI":
+            data = {}
+            content = self.remove(self.getBefore(content))
+            content = self.SplitContent(content)
+            hdi_types = self.readTypes("HDI")
+            # check if content is empty
+            if not content:
+                data["HDI"] = content
+                data["annotated_HDI"] = {"term": " ", "id": " ", "source_db": "umls", "original_string": content}
+            else:
+                anno_terms = []
+                if isinstance(content, str):
+                    anno = self.listAnn(name, content, hdi_types, self.getSplitHDI)
                     anno_terms.extend(anno)
                 else:
-                    anno_terms.append(anno)
-            if not anno_terms:
-                data["HDI"] = content
-                data["annotated_HDI"] = " "
-            else:
+                    anno = self.strAnn(name, content, hdi_types, self.getSplitHDI)
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]
                 data["HDI"] = content
                 anno_terms = self.duplicateHDI(name, anno_terms)
                 better_strcture = self.structure(anno_terms)
                 data["annotated_HDI"] = better_strcture
-        return data
-    # PU annotation process main function
-    # @name: herb name
-    # @content: section content for the herb, i.e. herb["purposed_uses"]
-    # get AR content annotated using MetaMap
-
-    def PUProcess(self, name, content):
-        data = {}
-        content = self.remove(content)
-        pu_types = self.readTypes("PU")
-        # if pu is empty
-        if not content:
-            data["PU"] = " "
-            data["annotated_PU"] = " "
-        else:
-            anno_terms = []
-            if isinstance(content, list):
-                for each in content:
-                    command = self.getComm(each, additional=" --term_processing")
-                    output = self.getAnnNoOutput(command).decode("utf-8")
-                    anno = self.outputHelper(output, pu_types, self.getSplit)
-                    if isinstance(anno, list):
-                        anno_terms.extend(anno)
-                    else:
-                        anno_terms.append(anno)
+            return data
+        # PU process
+        elif fun.upper() == "PU":
+            data = {}
+            content = self.remove(content)
+            pu_types = self.readTypes("PU")
+            # check if content is empty
+            if not content:
+                data["PU"] = content
+                data["annotated_PU"] = {"term": " ", "id": " ", "source_db": "umls", "original_string": content}
             else:
-                command = self.getComm(content, additional=" --term_processing")
-                output = self.getAnnNoOutput(command).decode("utf-8")
-                anno = self.outputHelper(output, pu_types, self.getSplit)
-                if isinstance(anno, list):
+                anno_terms = []
+                if isinstance(content, list):
+                    anno = self.listAnn(name, content, pu_types, self.getSplit)
                     anno_terms.extend(anno)
                 else:
-                    anno_terms.append(anno)
-            if not anno_terms:
-                data["PU"] = content
-                data["annotated_PU"] = " "
-            else:
+                    anno = self.strAnn(name, content, pu_types, self.getSplit)
+                    anno_terms.extend(anno)
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]
                 data["PU"] = content
                 better_strcture = self.structure(anno_terms)
                 data["annotated_PU"] = better_strcture
-        return data
+            return data
+        else:
+            raise ValueError("Currently only supports HDI and PU")

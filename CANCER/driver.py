@@ -15,16 +15,18 @@ class driver(object):
 		# remove "herb-drug_interactions", "adverse_reactions", "purported_uses" for specific pre-processing
 		self.headers = ["contraindications", "last_updated", "common_name", "scientific_name", "warnings", "clinical_summary", "food_sources", "mechanism_of_action"]
 	def readFile(self):
-		# start MetaMap server
-		mm = umlsAnn(self.location)
-		mm.start()
 		meddra = meddraAnn()
 		with open(os.path.join(self.path, self.read_file), "r") as f:
 			for line in f:
+				# start MetaMap server
+				mm = umlsAnn(self.location)
+				mm.start()
 				data = {}
 				herb = json.loads(line)
 				name = herb["name"]
 				data["name"] = name
+				print("-----------------")
+				print(name)
 				# get annotations
 				hdi_content = herb["herb-drug_interactions"]
 				pu_content = herb["purported_uses"]
@@ -38,16 +40,16 @@ class driver(object):
 				data["annotated_PU"] = pu_data["annotated_PU"]
 				data["ADR"] = adr_data["ADR"]
 				data["annotated_ADR"] = adr_data["annotated_ADR"]
-				print(data)
-				break
 				'''
 				# write to dict
 				# read the remaining headers and their contents
 				for each in self.headers:
 					data[each] = herb[each]
 				# write to local file
-				#self.write(data)
+				self.write(data)
 				'''
+				print("-----------------")
+				
 	## write to local file
 	def write(self, data):
 		with open("cancer_ann_data.jsonl", "a") as output:
@@ -56,8 +58,28 @@ class driver(object):
 	def run(self):
 		self.readFile()
 
+	# test function
+	def test(self):
+		meddra = meddraAnn()
+		mm = umlsAnn(self.location)
+		mm.start()
+		with open(os.path.join(self.path, self.read_file), "r") as f:
+			for line in f:
+				# start MetaMap server
+				data = {}
+				herb = json.loads(line)
+				name = herb["name"]
+				data["name"] = name
+				print("-----------------")
+				print(name)
+				# get annotations
+				hdi_content = herb["herb-drug_interactions"]
+				pu_content = herb["purported_uses"]
+				mm.process(name, pu_content, "PU")
+				print("-----------------")
+
 if __name__ == "__main__":
     x = driver("/Users/Changye/Documents/workspace/public_mm")
-    x.run()
+    x.test()
 
 

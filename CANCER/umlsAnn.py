@@ -214,6 +214,7 @@ class umlsAnn(object):
                     return s
                 else:
                     print("no terms match required semantic types")
+                    return " "
             # if there are multiple terms in the chunk
             else:
                 qualified_terms = []
@@ -400,6 +401,7 @@ class umlsAnn(object):
                 anno_terms.extend(anno)
             else:
                 anno_terms.append(anno)
+        return anno_terms
 
     # a new process function for HDI and PU
     # @name: herb name
@@ -408,37 +410,33 @@ class umlsAnn(object):
     def process(self, name, content, fun):
         # HDI process
         if fun.upper() == "HDI":
-            data = {}
             content = self.remove(self.getBefore(content))
             content = self.SplitContent(content)
             hdi_types = self.readTypes("HDI")
             # check if content is empty
             if not content:
-                data["HDI"] = content
-                data["annotated_HDI"] = {"term": " ", "id": " ", "source_db": "umls", "original_string": content}
+                d = [{"term": " ", "id": " ", "source_db": "umls", "original_string": content}]
+                return d
             else:
                 anno_terms = []
-                if isinstance(content, str):
+                if isinstance(content, list):
                     anno = self.listAnn(name, content, hdi_types, self.getSplitHDI)
                     anno_terms.extend(anno)
                 else:
                     anno = self.strAnn(name, content, hdi_types, self.getSplitHDI)
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]
-                data["HDI"] = content
                 anno_terms = self.duplicateHDI(name, anno_terms)
                 better_strcture = self.structure(anno_terms)
-                data["annotated_HDI"] = better_strcture
-            return data
+            return better_strcture
         # PU process
         elif fun.upper() == "PU":
-            data = {}
             content = self.remove(content)
             pu_types = self.readTypes("PU")
             # check if content is empty
             if not content:
-                data["PU"] = content
-                data["annotated_PU"] = {"term": " ", "id": " ", "source_db": "umls", "original_string": content}
+                d = [{"term": " ", "id": " ", "source_db": "umls", "original_string": content}]
+                return d
             else:
                 anno_terms = []
                 if isinstance(content, list):
@@ -449,9 +447,7 @@ class umlsAnn(object):
                     anno_terms.extend(anno)
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]
-                data["PU"] = content
                 better_strcture = self.structure(anno_terms)
-                data["annotated_PU"] = better_strcture
-            return data
+            return better_strcture
         else:
             raise ValueError("Currently only supports HDI and PU")

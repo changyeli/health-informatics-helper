@@ -92,10 +92,12 @@ class meddraAnn(object):
         ar = self.remove(self.concate(ar, " "))
         # if ar is empty
         if not ar:
-            data["ADR"] = " "
-            data["annotated_ADR"] = {"term": " ", "id": " ", "source_db": "meddra", "original_string": " "}
+            d = [{"term": " ", "id": " ", "source_db": "meddra", "original_string": " "}]
+            return d
         else:
             res = self.adrProcess(ar)
-            data["ADR"] = ar
-            data["annotated_ADR"] = res
-        return data
+            if not res:
+                d = [{"term": " ", "id": " ", "source_db": "meddra", "original_string": " "}]
+                return d
+            else:
+                return res

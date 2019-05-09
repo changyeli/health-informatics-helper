@@ -2,6 +2,8 @@ import csv
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from collections import Counter
+# extracting all ingredients url from alphabetic listing page
+# please run cancer_url.py first
 class cancer_header(object):
 	def __init__(self):
 		self.herb = "cancer_herb_url.csv"

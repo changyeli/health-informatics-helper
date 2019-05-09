@@ -2,9 +2,10 @@ import csv, json, pickle
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.common.exceptions import NoSuchElementException
-from datetime import datetime
+# extract section content for each ingredient
+# before running this script, please run cancer_url.py first to get the csv file
 class cancer_context(object):
-	def __init__(self):
+	def __init__(self, driver):
 		self.urls = "cancer_herb_url.csv"
 		## common headers
 		self.common = ["scientific_name", "clinical_summary", "purported_uses",
@@ -12,16 +13,10 @@ class cancer_context(object):
 						"adverse_reactions", "herb-drug_interactions"]
 		## unwanted headers
 		self.uncomon = ["herb_lab_interactions", "brand_name", "references","dosage_(onemsk_only)"]
-	def driverSetup(self):
-		options = Options()
-		## do not open firefox 
-		options.add_argument("--headless")
-		driver = webdriver.Firefox(executable_path = "/usr/local/bin/geckodriver", options = options)
-		driver.implicitly_wait(1)
-		return driver
+		self.driver = driver
 	## get content under common names
-	def getCommon(self, driver):
-		context = driver.find_element_by_id("block-mskcc-content")
+	def getCommon(self):
+		context = self.driver.find_element_by_id("block-mskcc-content")
 		## if the herb has common names
 		try:
 			print("extracting common names")
@@ -83,66 +78,53 @@ class cancer_context(object):
 				sections[each] = " "
 		return sections
 	## get content under For Healthcare Professional
-	def getPro(self, driver):
+	def getPro(self):
 		## For Healthcare Professionals main context
 		## mskcc__article mskcc__article--sub-article navigate-section
-		context = driver.find_elements_by_xpath("/html/body/div[2]/div/div/div[1]/main/div/div[2]/div[2]/div[4]/div/div/article/div[1]/div[4]")
+		context = self.driver.find_elements_by_xpath("/html/body/div[2]/div/div/div[1]/main/div/div[2]/div[2]/div[4]/div/div/article/div[1]/div[4]")
 		return(self.correctSection(context))
 	## get last updated information
-	def getUpdate(self, driver):
+	def getUpdate(self):
 		print("extracting last updated information")
-		section = driver.find_element_by_xpath('//*[@id="field-shared-last-updated"]')
+		section = self.driver.find_element_by_xpath('//*[@id="field-shared-last-updated"]')
 		time = section.find_element_by_xpath("/html/body/div[2]/div/div/div[1]/main/div/div[2]/div[2]/div[4]/div/div/article/div[1]/div[6]/div/div/time").get_attribute("datetime")
 		return time
 	## write to local file
-	def write(self):
-		print("loading binary data")
-		with open("cancer_data.p", "rb") as f:
-			values = pickle.load(f)
-		print("writing to json file")
-		for data in values:
-			with open("cancer_herb_content.json", "a") as output:
-				json.dump(data, output)
-				output.write("\n")
+	def write(self, data):
+		with open("cancer_herb_content.jsonl", "a") as output:
+			json.dump(data, output)
+			output.write("\n")
 		print("finish writing")
 	## process
-	def process(self, driver):
-		values = []
+	def process(self):
 		try:
 			with open(self.urls, "r") as f:
 				readCSV = csv.reader(f, delimiter = ",")
 				for row in readCSV:
 					## save each website's extraction in to dict, then save it to jsonl
 					data = {}
-					driver.get(row[1])
+					self.driver.get(row[1])
 					print("=========================")
 					print("processing " + row[0])
 					data["name"] = row[0]
-					names = self.getCommon(driver)
+					names = self.getCommon()
 					data["common_name"] = names
-					sections = self.getPro(driver)
+					sections = self.getPro()
 					for k, v in sections.items():
 						k = k.lower().split(" ")
 						k = "_".join(k)
 						data[k] = v
-					data["last_updated"] = self.getUpdate(driver)
+					data["last_updated"] = self.getUpdate()
 					data["url"] = row[1]
-					values.append(data)
+					self.write(data)
 					print("=========================")
-			print("dumping data to local")
-			with open("cancer_data.p", "wb") as f:
-				pickle.dump(values, f)
+			self.driver.close()
 		except IOError:
 			print("No such file, please run cancer_header.py first.")
 		
 	## main function
 	def run(self):
-		starttime = datetime.now()
-		driver = self.driverSetup()
-		self.process(driver)
-		self.write()
-		driver.close()
-		print(starttime - datetime.now())
+		self.process()
 	## test with single url
 	def test(self):
 		with open("cancer_herb_content.json", "r") as f:
@@ -155,5 +137,3 @@ class cancer_context(object):
 					break
 				except KeyError:
 					print("No such content.")
-x = cancer_context()
-x.test()

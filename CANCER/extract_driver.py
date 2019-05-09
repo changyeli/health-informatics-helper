@@ -32,3 +32,6 @@ class extract_driver(object):
         driver = self.driverSetup()
         self.getURL(driver)
         self.getContent(driver)
+if __name__ == "__main__":
+    x = extract_driver()
+    x.run()

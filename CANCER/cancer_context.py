@@ -125,15 +125,3 @@ class cancer_context(object):
 	## main function
 	def run(self):
 		self.process()
-	## test with single url
-	def test(self):
-		with open("cancer_herb_content.json", "r") as f:
-			for line in f:
-				data = json.loads(line)
-				try:
-					print(data["name"])
-					print(data["contraindications"])
-					print("\n")
-					break
-				except KeyError:
-					print("No such content.")

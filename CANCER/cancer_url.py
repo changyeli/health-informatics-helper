@@ -27,7 +27,6 @@ class cancer_url(object):
 				url = self.domain + url
 				self.pages[each.text] = url
 		self.write()
-		self.driver.close()
 	## get href in the html class
 	def getHref(self, item):
 		return item.get_attribute("href")
@@ -79,8 +78,7 @@ class cancer_url(object):
 							self.extract()
 					except NoSuchElementException:
 						self.extract()
-			self.writeHerb()	
-			self.driver.close()			
+			self.writeHerb()		
 		except IOError:
 			print("No such file, generating the file now....")
 			self.loadKeyword()
@@ -89,6 +87,9 @@ class cancer_url(object):
 		print("Finish extracting")
 	## main function
 	def run(self):
+		# find alphabetic listing url
+		self.loadKeyword()
+		# find all ingredient urls
 		self.loadMore()
 
 

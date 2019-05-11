@@ -1,8 +1,8 @@
 import os
 import subprocess
 from operator import itemgetter
-import pandas as pd
 import re
+import pandas as pd
 # get UMLS annotation for HDI, contradictions and purposed uses
 
 
@@ -63,11 +63,11 @@ class umlsAnn(object):
     def remove(self, value):
         if isinstance(value, list):
             value = [re.sub(r'[^\x00-\x7F]+', " ", each) for each in value]
-            value = [re.sub(r" ?\([^)]+\)", "", each) for each in value]
+            value = [re.sub(r" \([^)]*\)", "", each) for each in value]
             return value
         else:
             value = re.sub(r'[^\x00-\x7F]+', " ", value)
-            value = re.sub(r" ?\([^)]+\)", "", value)
+            value = re.sub(r" \([^)]*\)", "", value)
             return value
 
     # get content before ":"
@@ -263,24 +263,6 @@ class umlsAnn(object):
                     final_term = itemgetter(*max_len)(temp_term1)
                     return final_term
 
-    # remove item if the item has same name for both herb name and mapping word
-    # for HDI only
-    # @name: herb name, annotated by MetaMap
-    # @anno_terms: final annotated terms returned by self.outputHelper()
-
-    def duplicateHDI(self, name, anno_terms):
-        final_term = []
-        # find the mapping word 
-        for each in anno_terms:
-            res = re.sub(r" ?\([^)]+\)", "", each)
-            res = re.sub(r" \[(.*?)\]", "", res)
-            res = res.split(":")[1]
-            if name.lower() != res.lower():
-                final_term.append(each)
-            else:
-                pass
-        return final_term
-
     # output selection main function
     # @output: MM output, in string format
     # @splitFun: split function for MM output semantic types
@@ -291,7 +273,7 @@ class umlsAnn(object):
         output = output.split("\n")[1:]
         chunks = self.selectChunks(output)
         terms = self.limit(chunks, types, splitFun)
-        if isinstance(terms, str):
+        if isinstance(terms, str) and not terms:
             return terms
         elif isinstance(terms, list):
             return self.qualified(terms)
@@ -336,26 +318,48 @@ class umlsAnn(object):
         ...
     ]
     '''
-    # @anno_terms: seletected MM output, in the format of list
-    # return a list of dictionary, in the structure as desribed above
-    def structure(self, anno_terms):
+    # @content: the input value for MM
+    # @anno_terms: seletected MM output
+    # return a list of dictionary, or an empty dict, in the structure as desribed above
+    def structure(self, content, anno_terms):
         # check if anno_terms is empty
         if not anno_terms:
-            d = {"term": " ", "id": " ", "source_db": "umls", "original_string": " "}
+            d = {"term": " ", "id": " ", "source_db": "umls", "original_string": " ", "semtype": " "}
+            print("empty anno_terms")
             return d
         else:
             better_strcture = []
-            for each in anno_terms:
-                s = each.split(":")
-                # find mapping id
-                ids = s[0].split(" ")[-1]
-                # find mapping word
-                # remove () and [] area
-                res = re.sub(r" ?\([^)]+\)", "", s[1])
-                res = re.sub(r" \[(.*?)\]", "", res)
-                # save the new structure into dict
-                d = {"term": res.lower(), "id": ids, "source_db": "umls", "original_string": each}
-                better_strcture.append(d)
+            if isinstance(anno_terms, list):
+                for each in anno_terms:
+                    # find semantic types
+                    s = each.split(":")
+                    # find mapping id
+                    ids = s[0].split(" ")[-1]
+                    # find mapping word
+                    # remove () and [] area
+                    semantic = re.findall(r'\[(.*?)\]', s[1])
+                    res = re.sub(r" \([^)]*\)", "", s[1])
+                    res = re.sub(r" \[(.*?)\]", "", res)
+                    # save the new structure into dict
+                    d = {"term": res, "id": ids, "source_db": "umls", "original_string": each, "semtype": semantic}
+                    better_strcture.append(d)
+            else:
+                # find semantic types
+                s = anno_terms.split(":")
+                # not a valid output
+                if len(s) == 1:
+                    pass
+                else:
+                    # find mapping id
+                    ids = s[0].split(" ")[-1]
+                    # find mapping word
+                    # remove () and [] area
+                    semantic = re.findall(r'\[(.*?)\]', s[1])
+                    res = re.sub(r" ?\([^)]+\)", "", s[1])
+                    res = re.sub(r" \[(.*?)\]", "", res)
+                    # save the new structure into dict
+                    d = {"term": res, "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic}
+                    better_strcture.append(d)
             return better_strcture
 
     # annotation with list content process
@@ -371,9 +375,17 @@ class umlsAnn(object):
             output = self.getAnnNoOutput(command).decode("utf-8")
             anno = self.outputHelper(output, types, splitFun)
             if isinstance(anno, list):
-                anno_terms.extend(anno)
+                better_anno = self.structure(each, anno)
+                if isinstance(better_anno, list):
+                    anno_terms.extend(better_anno)
+                else:
+                    anno_terms.append(better_anno)
             else:
-                anno_terms.append(anno)
+                better_anno = self.structure(each, anno)
+                if isinstance(better_anno, list):
+                    anno_terms.extend(better_anno)
+                else:
+                    anno_terms.append(better_anno)
         return anno_terms
     
     # annotation with string content process
@@ -391,9 +403,17 @@ class umlsAnn(object):
             output = self.getAnnNoOutput(command).decode("utf-8")
             anno = self.outputHelper(output, types, splitFun)
             if isinstance(anno, list):
-                anno_terms.extend(anno)
+                better_anno = self.structure(content[0], anno)
+                if isinstance(better_anno, list):
+                    anno_terms.extend(better_anno)
+                else:
+                    anno_terms.append(better_anno)
             else:
-                anno_terms.append(anno)
+                better_anno = self.structure(content[0], anno)
+                if isinstance(better_anno, list):
+                    anno_terms.extend(better_anno)
+                else:
+                    anno_terms.append(better_anno)
         # there are multiple items in the content
         else:
             anno = self.listAnn(name, content, types, splitFun)
@@ -415,7 +435,7 @@ class umlsAnn(object):
             hdi_types = self.readTypes("HDI")
             # check if content is empty
             if not content:
-                d = [{"term": " ", "id": " ", "source_db": "umls", "original_string": content}]
+                d = [{"term": " ", "id": " ", "source_db": "umls", "original_string": " ", "semtype": " "}]
                 return d
             else:
                 anno_terms = []
@@ -426,9 +446,7 @@ class umlsAnn(object):
                     anno = self.strAnn(name, content, hdi_types, self.getSplitHDI)
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]
-                anno_terms = self.duplicateHDI(name, anno_terms)
-                better_strcture = self.structure(anno_terms)
-            return better_strcture
+            return anno_terms
         # PU process
         elif fun.upper() == "PU":
             content = self.remove(content)
@@ -447,7 +465,6 @@ class umlsAnn(object):
                     anno_terms.extend(anno)
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]
-                better_strcture = self.structure(anno_terms)
-            return better_strcture
+            return anno_terms
         else:
             raise ValueError("Currently only supports HDI and PU")

@@ -6,9 +6,6 @@ import config
 import os
 import subprocess
 import re
-import csv
-import pickle
-from collections import Counter
 
 
 class meddraAnn(object):
@@ -24,9 +21,10 @@ class meddraAnn(object):
         opener.addheaders = [('Authorization', 'apikey token=' + self.API_KEY)]
         return json.loads(opener.open(url).read())
     # get prefLabel from annotation
-    # @ annotations: the annotated document from BioPortal
+    # @annotations: the annotated document from BioPortal
+    # @ar: herb["adverse_reactions"] content
 
-    def getLabel(self, annotations, get_class=True):
+    def getLabel(self, annotations, ar, get_class=True):
         labels = []
         for result in annotations:
             class_details = result["annotatedClass"]
@@ -34,8 +32,8 @@ class meddraAnn(object):
                 try:
                     class_details = self.auth(
                         result["annotatedClass"]["links"]["self"])
-                    id = class_details["links"]["self"].split("%")[-1][2:]
-                    d = {"term": class_details["prefLabel"].lower(), "id": id, "source_db": "meddra", "original_string": class_details["prefLabel"]}
+                    ids = class_details["links"]["self"].split("%")[-1][2:]
+                    d = {"term": class_details["prefLabel"], "id": ids, "source_db": "meddra", "original_string": ar}
                     labels.append(d)
                 except urllib.error.HTTPError:
                     print(f"Error retrieving {result['annotatedClass']['@id']}")
@@ -67,7 +65,7 @@ class meddraAnn(object):
             return value
 
     # adverse reactions pre-process
-    # @ar: datac["adverse_reactions"]
+    # @ar: data["adverse_reactions"]
     # return annotated terms
 
     def adrProcess(self, ar):
@@ -75,29 +73,25 @@ class meddraAnn(object):
         if ar:
             ar_annotations = self.auth(
                 self.REST_URL + self.meddra + urllib.parse.quote(ar) + self.conf)
-            labels = self.getLabel(ar_annotations)
+            labels = self.getLabel(ar_annotations, ar)
             return labels
         else:
             return " "
 
     # AR annotation process main function
     # get AR content annotated using MEDDRA
-    # @name: herb name
     # @ar: AR content
-    # @meddra: MEDDRA constructor
-    # @output_file: the local file name to write
 
     def main(self, ar):
-        data = {}
         ar = self.remove(self.concate(ar, " "))
         # if ar is empty
         if not ar:
-            d = [{"term": " ", "id": " ", "source_db": "meddra", "original_string": " "}]
+            d = [{"term": " ", "id": " ", "source_db": "meddra", "original_string": " ", "semtype": " "}]
             return d
         else:
             res = self.adrProcess(ar)
             if not res:
-                d = [{"term": " ", "id": " ", "source_db": "meddra", "original_string": " "}]
+                d = [{"term": " ", "id": " ", "source_db": "meddra", "original_string": ar, "semtype": " "}]
                 return d
             else:
                 return res

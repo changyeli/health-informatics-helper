@@ -325,7 +325,6 @@ class umlsAnn(object):
         # check if anno_terms is empty
         if not anno_terms:
             d = {"term": " ", "id": " ", "source_db": "umls", "original_string": " ", "semtype": " "}
-            print("empty anno_terms")
             return d
         else:
             better_strcture = []

@@ -49,8 +49,34 @@ class driver(object):
 		with open(os.path.join(self.path, "cancer_ann_data.jsonl"), "a") as output:
 			json.dump(data, output)
 			output.write("\n")
+	# main function
 	def run(self):
 		self.readFile()
+	# test function
+	def test(self):
+		meddra = meddraAnn()
+		mm = umlsAnn(self.location)
+		mm.start()
+		with open(os.path.join(self.path, self.read_file), "r") as f:
+			for line in f:
+				data = {}
+				herb = json.loads(line)
+				name = herb["name"]
+				data["name"] = name
+				if data["name"] == "Acai Berry":
+					print("-----------------")
+					print(name)
+					# get annotations
+					adr_content = herb["adverse_reactions"]
+					data["ADR"] = adr_content
+					data["annotated_ADR"] = meddra.main(adr_content)
+					print("annotated ADR:")
+					print(data["annotated_ADR"])
+					# rest components
+					for item in self.headers:
+						data[item] = herb[item]
+				else:
+					pass
 
 if __name__ == "__main__":
     x = driver("/Users/Changye/Documents/workspace/public_mm")

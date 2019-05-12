@@ -78,6 +78,17 @@ class meddraAnn(object):
         else:
             return " "
 
+    # check if content is none or empty
+    # @content: herb["adverse_reactions"]
+    # return true if content is either none or empty
+    # otherwise return false
+    def isBlank(self, content):
+        if content and content.strip():
+            # content is not None AND content is not empty or blank
+            return False
+        # content is None OR content is empty or blank
+        return True
+
     # AR annotation process main function
     # get AR content annotated using MEDDRA
     # @ar: AR content
@@ -85,7 +96,7 @@ class meddraAnn(object):
     def main(self, ar):
         ar = self.remove(self.concate(ar, " "))
         # if ar is empty
-        if not ar:
+        if self.isBlank(ar):
             d = [{"term": " ", "id": " ", "source_db": "meddra", "original_string": " ", "semtype": " "}]
             return d
         else:

@@ -360,14 +360,26 @@ class umlsAnn(object):
                     d = {"term": res, "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic}
                     better_strcture.append(d)
             return better_strcture
+    
+    # remove duplicated mapping output for HDI
+    # remove the record if the mapping word is same as the herb name
+    # @anno: a list of structured output from self.structure()
+    # @name: herb name
+    def duplicateHDI(self, anno, name):
+        final_output = []
+        for each in anno:
+            if each["term"].lower() != name.lower():
+                final_output.append(each)
+            else:
+                pass
+        return final_output
 
     # annotation with list content process
-    # @name: herb name
     # @content: section content, in list format
     # @types: a list of required semantic types
     # @splitFun: content split function
     # return a list of annotated terms
-    def listAnn(self, name, content, types, splitFun):
+    def listAnn(self,content, types, splitFun):
         anno_terms = []
         for each in content:
             command = self.getComm(each, additional = " --term_processing")
@@ -388,12 +400,11 @@ class umlsAnn(object):
         return anno_terms
     
     # annotation with string content process
-    # @name: herb name
     # @content: section content, in list format
     # @types: a list of required semantic types
     # @splitFun: content split function
     # return a list of annotated terms
-    def strAnn(self, name, content, types, splitFun):
+    def strAnn(self, content, types, splitFun):
         anno_terms = []
         content = content.split("\n")
         # if the content cannot be split by newline
@@ -415,7 +426,7 @@ class umlsAnn(object):
                     anno_terms.append(better_anno)
         # there are multiple items in the content
         else:
-            anno = self.listAnn(name, content, types, splitFun)
+            anno = self.listAnn(content, types, splitFun)
             if isinstance(anno, list):
                 anno_terms.extend(anno)
             else:
@@ -439,12 +450,13 @@ class umlsAnn(object):
             else:
                 anno_terms = []
                 if isinstance(content, list):
-                    anno = self.listAnn(name, content, hdi_types, self.getSplitHDI)
+                    anno = self.listAnn(content, hdi_types, self.getSplitHDI)
                     anno_terms.extend(anno)
                 else:
-                    anno = self.strAnn(name, content, hdi_types, self.getSplitHDI)
+                    anno = self.strAnn(content, hdi_types, self.getSplitHDI)
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]
+            anno_terms = self.duplicateHDI(anno_terms, name)
             return anno_terms
         # PU process
         elif fun.upper() == "PU":
@@ -457,10 +469,10 @@ class umlsAnn(object):
             else:
                 anno_terms = []
                 if isinstance(content, list):
-                    anno = self.listAnn(name, content, pu_types, self.getSplit)
+                    anno = self.listAnn(content, pu_types, self.getSplit)
                     anno_terms.extend(anno)
                 else:
-                    anno = self.strAnn(name, content, pu_types, self.getSplit)
+                    anno = self.strAnn(content, pu_types, self.getSplit)
                     anno_terms.extend(anno)
                 anno_terms = list(filter(None, anno_terms))
                 anno_terms = [each for each in anno_terms if each != " "]

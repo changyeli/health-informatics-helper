@@ -32,10 +32,8 @@ class driver(object):
 				adr_content = herb["adverse_reactions"]
 				data["HDI"] = hdi_content
 				data["annotated_HDI"] = mm.process(name, hdi_content, "HDI")
-				print(data["annotated_HDI"])
 				data["PU"] = pu_content
 				data["annotated_PU"] = mm.process(name, pu_content, "PU")
-				print(data["annotated_PU"])
 				data["ADR"] = adr_content
 				data["annotated_ADR"] = meddra.main(adr_content)
 				# rest components

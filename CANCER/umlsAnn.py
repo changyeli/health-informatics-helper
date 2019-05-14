@@ -273,7 +273,7 @@ class umlsAnn(object):
         output = output.split("\n")[1:]
         chunks = self.selectChunks(output)
         terms = self.limit(chunks, types, splitFun)
-        if isinstance(terms, str) and not terms:
+        if isinstance(terms, str):
             return terms
         elif isinstance(terms, list):
             return self.qualified(terms)
@@ -330,18 +330,21 @@ class umlsAnn(object):
             better_strcture = []
             if isinstance(anno_terms, list):
                 for each in anno_terms:
-                    # find semantic types
-                    s = each.split(":")
-                    # find mapping id
-                    ids = s[0].split(" ")[-1]
-                    # find mapping word
-                    # remove () and [] area
-                    semantic = re.findall(r'\[(.*?)\]', s[1])
-                    res = re.sub(r" \([^)]*\)", "", s[1])
-                    res = re.sub(r" \[(.*?)\]", "", res)
-                    # save the new structure into dict
-                    d = {"term": res, "id": ids, "source_db": "umls", "original_string": each, "semtype": semantic}
-                    better_strcture.append(d)
+                    # if the term is already annotated
+                    if isinstance(each, dict):
+                        better_strcture.append(each)
+                    else:
+                        s = each.split(":")
+                        # find mapping id
+                        ids = s[0].split(" ")[-1]
+                        # find semantic types
+                        semantic = re.findall(r'\[(.*?)\]', s[1])
+                        # remove () and [] area
+                        # find mapping word
+                        res = s[1].split("(")[0]
+                        # save the new structure into dict
+                        d = {"term": res, "id": ids, "source_db": "umls", "original_string": each, "semtype": semantic}
+                        better_strcture.append(d)
             else:
                 # find semantic types
                 s = anno_terms.split(":")
@@ -374,6 +377,26 @@ class umlsAnn(object):
                 pass
         return final_output
 
+    # structure helper function
+    # @each: the input value for MM
+    # @anno: selected MM output
+    # @anno_terms: list for storing sturctured annotated output
+    # return a list of structured annotated output
+    def struHelper(self, each, anno, anno_terms):
+        if isinstance(anno, list):
+            better_anno = self.structure(each, anno)
+            if isinstance(better_anno, list):
+                anno_terms.extend(better_anno)
+            else:
+                anno_terms.append(better_anno)
+        else:
+            better_anno = self.structure(each, anno)
+            if isinstance(better_anno, list):
+                anno_terms.extend(better_anno)
+            else:
+                anno_terms.append(better_anno)
+        return anno_terms
+
     # annotation with list content process
     # @content: section content, in list format
     # @types: a list of required semantic types
@@ -385,18 +408,7 @@ class umlsAnn(object):
             command = self.getComm(each, additional = " --term_processing")
             output = self.getAnnNoOutput(command).decode("utf-8")
             anno = self.outputHelper(output, types, splitFun)
-            if isinstance(anno, list):
-                better_anno = self.structure(each, anno)
-                if isinstance(better_anno, list):
-                    anno_terms.extend(better_anno)
-                else:
-                    anno_terms.append(better_anno)
-            else:
-                better_anno = self.structure(each, anno)
-                if isinstance(better_anno, list):
-                    anno_terms.extend(better_anno)
-                else:
-                    anno_terms.append(better_anno)
+            self.struHelper(each, anno, anno_terms)
         return anno_terms
     
     # annotation with string content process
@@ -412,25 +424,11 @@ class umlsAnn(object):
             command = self.getComm(content[0], additional = " --term_processing")
             output = self.getAnnNoOutput(command).decode("utf-8")
             anno = self.outputHelper(output, types, splitFun)
-            if isinstance(anno, list):
-                better_anno = self.structure(content[0], anno)
-                if isinstance(better_anno, list):
-                    anno_terms.extend(better_anno)
-                else:
-                    anno_terms.append(better_anno)
-            else:
-                better_anno = self.structure(content[0], anno)
-                if isinstance(better_anno, list):
-                    anno_terms.extend(better_anno)
-                else:
-                    anno_terms.append(better_anno)
+            self.struHelper(content[0], anno, anno_terms)
         # there are multiple items in the content
         else:
             anno = self.listAnn(content, types, splitFun)
-            if isinstance(anno, list):
-                anno_terms.extend(anno)
-            else:
-                anno_terms.append(anno)
+            self.struHelper(content, anno, anno_terms)
         return anno_terms
 
     # a new process function for HDI and PU

@@ -14,6 +14,16 @@ class driver(object):
 		self.read_file = "cancer_herb_content.jsonl"
 		# remove "herb-drug_interactions", "adverse_reactions", "purported_uses" for specific pre-processing
 		self.headers = ["contraindications", "last_updated", "common_name", "scientific_name", "warnings", "clinical_summary", "food_sources", "mechanism_of_action"]
+		# overlap ingredients
+		self.overlap_herbs = ["Andrographis", "Blue-Green Algae", "Bromelain", "Butterbur"
+							"Calcium", "Cranberry", "Elderberry", "Fenugreek",
+                              "Flaxseed", "Folic Acid", "Ginkgo", "Grape",
+                              "Hops", "Indole-3-Carbinol", "Kudzu", "L-Arginine",
+                              "L-Tryptophan", "Melatonin", "N-Acetyl Cysteine", "Pomegranate",
+                              "Red Clover", "Reishi Mushroom", "Shiitake Mushroom", "Siberian Ginseng",
+                              "Turmeric", "Vitamin B12", "Vitamin E", "Vitamin K",
+                              "Blue-green Algae", "Folate", "Grape seeds", "Arginine",
+                              "5-HTP", "N-Acetylcysteine"]
 	def readFile(self):
 		meddra = meddraAnn()
 		mm = umlsAnn(self.location)
@@ -28,12 +38,12 @@ class driver(object):
 				print(name)
 				# get annotations
 				hdi_content = herb["herb-drug_interactions"]
-				pu_content = herb["purported_uses"]
-				adr_content = herb["adverse_reactions"]
 				data["HDI"] = hdi_content
 				data["annotated_HDI"] = mm.process(name, hdi_content, "HDI")
+				pu_content = herb["purported_uses"]
 				data["PU"] = pu_content
 				data["annotated_PU"] = mm.process(name, pu_content, "PU")
+				adr_content = herb["adverse_reactions"]
 				data["ADR"] = adr_content
 				data["annotated_ADR"] = meddra.main(adr_content)
 				# rest components
@@ -44,7 +54,7 @@ class driver(object):
 				
 	## write to local file
 	def write(self, data):
-		with open(os.path.join(self.path, "cancer_ann_data.jsonl"), "a") as output:
+		with open(os.path.join(self.path, "test.jsonl"), "a") as output:
 			json.dump(data, output)
 			output.write("\n")
 	# main function
@@ -61,23 +71,23 @@ class driver(object):
 				herb = json.loads(line)
 				name = herb["name"]
 				data["name"] = name
-				if data["name"] == "Acai Berry":
+				if name in self.overlap_herbs:
 					print("-----------------")
 					print(name)
 					# get annotations
+					hdi_content = herb["herb-drug_interactions"]
+					data["HDI"] = hdi_content
+					data["annotated_HDI"] = mm.process(name, hdi_content, "HDI")
+					pu_content = herb["purported_uses"]
+					data["PU"] = pu_content
+					data["annotated_PU"] = mm.process(name, pu_content, "PU")
 					adr_content = herb["adverse_reactions"]
 					data["ADR"] = adr_content
 					data["annotated_ADR"] = meddra.main(adr_content)
-					print("annotated ADR:")
-					print(data["annotated_ADR"])
-					# rest components
-					for item in self.headers:
-						data[item] = herb[item]
-				else:
-					pass
-
+					self.write(data)
+	
 if __name__ == "__main__":
     x = driver("/Users/Changye/Documents/workspace/public_mm")
-    x.run()
+    x.test()
 
 

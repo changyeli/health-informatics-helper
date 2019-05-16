@@ -316,27 +316,31 @@ class umlsAnn(object):
     # return the mapped word, with the structured format
     def findMapping(self, term, content):
         s = term.split(":")
-        # find mapping id
-        ids = s[0].split(" ")[-1]
-        # find semantic types
-        semantic = re.findall(r'\[(.*?)\]', s[1])
-        # remove () and [] area
-        # find mapping word
-        res = re.sub(r" ?\([^)]+\)", "", s[1])
-        res = re.sub(r" \[(.*?)\]", "", res)
-        # check if any addition brackets left
-        if ")" in res:
-            res = res.replace(")", "").rstrip()
-            d = {"term": res.lstrip("-"), "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic}
-            return d
-        elif "(" in res:
-            res = res.replace("(", "").rstrip()
-            d = {"term": res.lstrip("-"), "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic}
-            return d
+        # check if it's a valid output
+        if len(s) == 1:
+            return " "
         else:
-            res = res.rstrip()
-            d = {"term": res.lstrip("-"), "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic} 
-            return d
+            # find mapping id
+            ids = s[0].split(" ")[-1]
+            # find semantic types
+            semantic = re.findall(r'\[(.*?)\]', s[1])
+            # remove () and [] area
+            # find mapping word
+            res = re.sub(r" ?\([^)]+\)", "", s[1])
+            res = re.sub(r" \[(.*?)\]", "", res)
+            # check if any addition brackets left
+            if ")" in res:
+                res = res.replace(")", "").rstrip()
+                d = {"term": res.lstrip("-"), "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic}
+                return d
+            elif "(" in res:
+                res = res.replace("(", "").rstrip()
+                d = {"term": res.lstrip("-"), "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic}
+                return d
+            else:
+                res = res.rstrip()
+                d = {"term": res.lstrip("-"), "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic} 
+                return d
 
     # strcture the output as
     '''
@@ -352,8 +356,7 @@ class umlsAnn(object):
     def structure(self, content, anno_terms):
         # check if anno_terms is empty
         if not anno_terms:
-            d = {"term": " ", "id": " ", "source_db": "umls", "original_string": content, "semtype": " "}
-            return d
+            return " "
         else:
             better_strcture = []
             if isinstance(anno_terms, list):
@@ -365,12 +368,10 @@ class umlsAnn(object):
                         d = self.findMapping(each, content)
                         better_strcture.append(d)
             else:
-                # find semantic types
                 s = anno_terms.split(":")
                 # not a valid output
                 if len(s) == 1:
-                    d = {"term": " ", "id": " ", "source_db": "umls", "original_string": content, "semtype": " "}
-                    return d
+                    return " "
                 else:
                     d = self.findMapping(anno_terms, content)
                     better_strcture.append(d)
@@ -383,10 +384,12 @@ class umlsAnn(object):
     def duplicateHDI(self, anno, name):
         final_output = []
         for each in anno:
-            if each["term"].lower() != name.lower():
-                final_output.append(each)
+            # check if each anno term is structured 
+            if isinstance(each, dict):
+                if each["term"].lower() != name.lower():
+                    final_output.append(each)
             else:
-                pass
+                final_output.append(each)
         return final_output
 
     # structure helper function
@@ -455,8 +458,7 @@ class umlsAnn(object):
             hdi_types = self.readTypes("HDI")
             # check if content is empty
             if not content:
-                d = [{"term": " ", "id": " ", "source_db": "umls", "original_string": " ", "semtype": " "}]
-                return d
+                return " "
             else:
                 anno_terms = []
                 if isinstance(content, list):
@@ -464,8 +466,6 @@ class umlsAnn(object):
                     anno_terms.extend(anno)
                 else:
                     anno = self.strAnn(content, hdi_types, self.getSplitHDI)
-                anno_terms = list(filter(None, anno_terms))
-                anno_terms = [each for each in anno_terms if each != " "]
             anno_terms = self.duplicateHDI(anno_terms, name)
             return anno_terms
         # PU process
@@ -474,8 +474,7 @@ class umlsAnn(object):
             pu_types = self.readTypes("PU")
             # check if content is empty
             if not content:
-                d = [{"term": " ", "id": " ", "source_db": "umls", "original_string": content}]
-                return d
+                return " "
             else:
                 anno_terms = []
                 if isinstance(content, list):
@@ -484,8 +483,6 @@ class umlsAnn(object):
                 else:
                     anno = self.strAnn(content, pu_types, self.getSplit)
                     anno_terms.extend(anno)
-                anno_terms = list(filter(None, anno_terms))
-                anno_terms = [each for each in anno_terms if each != " "]
             return anno_terms
         else:
             raise ValueError("Currently only supports HDI and PU")

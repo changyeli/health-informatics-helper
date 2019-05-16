@@ -28,12 +28,13 @@ class meddraAnn(object):
         labels = []
         for result in annotations:
             class_details = result["annotatedClass"]
+            offset = result["annotations"][0]
             if get_class:
                 try:
                     class_details = self.auth(
                         result["annotatedClass"]["links"]["self"])
                     ids = class_details["links"]["self"].split("%")[-1][2:]
-                    d = {"term": class_details["prefLabel"], "id": ids, "source_db": "meddra", "original_string": ar}
+                    d = {"term": class_details["prefLabel"], "id": ids, "source_db": "meddra", "original_string": offset["text"]}
                     labels.append(d)
                 except urllib.error.HTTPError:
                     print(f"Error retrieving {result['annotatedClass']['@id']}")
@@ -70,39 +71,37 @@ class meddraAnn(object):
 
     def adrProcess(self, ar):
         # check if exists adverse_reactions section
-        if ar:
-            ar_annotations = self.auth(
-                self.REST_URL + self.meddra + urllib.parse.quote(ar) + self.conf)
-            labels = self.getLabel(ar_annotations, ar)
-            return labels
-        else:
+        if not ar:
             return " "
-
-    # check if content is none or empty
-    # @content: herb["adverse_reactions"]
-    # return true if content is either none or empty
-    # otherwise return false
-    def isBlank(self, content):
-        if content and content.strip():
-            # content is not None AND content is not empty or blank
-            return False
-        # content is None OR content is empty or blank
-        return True
+        else:
+            if isinstance(ar, list):
+                anno = []
+                for each in ar:
+                    ar_annotations = self.auth(self.REST_URL + self.meddra + urllib.parse.quote(each) + self.conf)
+                    labels = self.getLabel(ar_annotations, each)
+                    if isinstance(labels, list):
+                        anno.extend(labels)
+                    else:
+                        anno.append(labels)
+                return anno
+            else:
+                ar_annotations = self.auth(self.REST_URL + self.meddra + urllib.parse.quote(ar) + self.conf)
+                labels = self.getLabel(ar_annotations, ar)
+                return labels
 
     # AR annotation process main function
     # get AR content annotated using MEDDRA
     # @ar: AR content
 
     def main(self, ar):
-        ar = self.remove(self.concate(ar, " "))
-        # if ar is empty
-        if self.isBlank(ar):
-            d = [{"term": " ", "id": " ", "source_db": "meddra", "original_string": " ", "semtype": " "}]
-            return d
+        ar = self.remove(ar)
+        anno = []
+        res = self.adrProcess(ar)
+        if isinstance(res, list):
+            anno.extend(res)
         else:
-            res = self.adrProcess(ar)
-            if not res:
-                d = [{"term": " ", "id": " ", "source_db": "meddra", "original_string": ar, "semtype": " "}]
-                return d
-            else:
-                return res
+            anno.append(res)
+        # remove duplicate items
+        final_anno = [value for index , value in enumerate(anno) if value not in anno[index+1:]]
+        return final_anno
+        

@@ -3,7 +3,7 @@ from umlsAnn import umlsAnn
 from meddraAnn import meddraAnn
 import json
 import os
-import pickle
+from pprint import pprint
 class driver(object):
 	def __init__(self, location):
 		# MetaMap location
@@ -54,7 +54,7 @@ class driver(object):
 				
 	## write to local file
 	def write(self, data):
-		with open(os.path.join(self.path, "test.jsonl"), "a") as output:
+		with open(os.path.join(self.path, "cancer_ann_data.jsonl"), "a") as output:
 			json.dump(data, output)
 			output.write("\n")
 	# main function
@@ -71,23 +71,31 @@ class driver(object):
 				herb = json.loads(line)
 				name = herb["name"]
 				data["name"] = name
-				if name in self.overlap_herbs:
-					print("-----------------")
-					print(name)
-					# get annotations
-					hdi_content = herb["herb-drug_interactions"]
-					data["HDI"] = hdi_content
-					data["annotated_HDI"] = mm.process(name, hdi_content, "HDI")
-					pu_content = herb["purported_uses"]
-					data["PU"] = pu_content
-					data["annotated_PU"] = mm.process(name, pu_content, "PU")
-					adr_content = herb["adverse_reactions"]
-					data["ADR"] = adr_content
-					data["annotated_ADR"] = meddra.main(adr_content)
-					self.write(data)
+				print("-----------------")
+				print(name)
+				# get annotations
+				hdi_content = herb["herb-drug_interactions"]
+				data["HDI"] = hdi_content
+				data["annotated_HDI"] = mm.process(name, hdi_content, "HDI")
+				pu_content = herb["purported_uses"]
+				data["PU"] = pu_content
+				data["annotated_PU"] = mm.process(name, pu_content, "PU")
+				print("annotated hdi: ")
+				pprint(data["annotated_HDI"])
+				print("\n")
+				print("annotated pu: ")
+				pprint(data["annotated_PU"])
+				print("-----------------")
+				self.write(data)
+				'''
+				adr_content = herb["adverse_reactions"]
+				data["ADR"] = adr_content
+				data["annotated_ADR"] = meddra.main(adr_content)
+				self.write(data)
+				'''
 	
 if __name__ == "__main__":
     x = driver("/Users/Changye/Documents/workspace/public_mm")
-    x.test()
+    x.run()
 
 

@@ -310,6 +310,34 @@ class umlsAnn(object):
                 pu = full_types.loc[full_types["tui"].isin(pu_types)]
                 return pu["types"].values.tolist()
 
+    # find mapped word
+    # @content: MM input word
+    # @term: MM output
+    # return the mapped word, with the structured format
+    def findMapping(self, term, content):
+        s = term.split(":")
+        # find mapping id
+        ids = s[0].split(" ")[-1]
+        # find semantic types
+        semantic = re.findall(r'\[(.*?)\]', s[1])
+        # remove () and [] area
+        # find mapping word
+        res = re.sub(r" ?\([^)]+\)", "", s[1])
+        res = re.sub(r" \[(.*?)\]", "", res)
+        # check if any addition brackets left
+        if ")" in res:
+            res = res.replace(")", "").rstrip()
+            d = {"term": res.lstrip("-"), "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic}
+            return d
+        elif "(" in res:
+            res = res.replace("(", "").rstrip()
+            d = {"term": res.lstrip("-"), "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic}
+            return d
+        else:
+            res = res.rstrip()
+            d = {"term": res.lstrip("-"), "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic} 
+            return d
+
     # strcture the output as
     '''
     "annotated_ADR": [
@@ -324,7 +352,7 @@ class umlsAnn(object):
     def structure(self, content, anno_terms):
         # check if anno_terms is empty
         if not anno_terms:
-            d = {"term": " ", "id": " ", "source_db": "umls", "original_string": " ", "semtype": " "}
+            d = {"term": " ", "id": " ", "source_db": "umls", "original_string": content, "semtype": " "}
             return d
         else:
             better_strcture = []
@@ -334,33 +362,17 @@ class umlsAnn(object):
                     if isinstance(each, dict):
                         better_strcture.append(each)
                     else:
-                        s = each.split(":")
-                        # find mapping id
-                        ids = s[0].split(" ")[-1]
-                        # find semantic types
-                        semantic = re.findall(r'\[(.*?)\]', s[1])
-                        # remove () and [] area
-                        # find mapping word
-                        res = s[1].split("(")[0]
-                        # save the new structure into dict
-                        d = {"term": res, "id": ids, "source_db": "umls", "original_string": each, "semtype": semantic}
+                        d = self.findMapping(each, content)
                         better_strcture.append(d)
             else:
                 # find semantic types
                 s = anno_terms.split(":")
                 # not a valid output
                 if len(s) == 1:
-                    pass
+                    d = {"term": " ", "id": " ", "source_db": "umls", "original_string": content, "semtype": " "}
+                    return d
                 else:
-                    # find mapping id
-                    ids = s[0].split(" ")[-1]
-                    # find mapping word
-                    # remove () and [] area
-                    semantic = re.findall(r'\[(.*?)\]', s[1])
-                    res = re.sub(r" ?\([^)]+\)", "", s[1])
-                    res = re.sub(r" \[(.*?)\]", "", res)
-                    # save the new structure into dict
-                    d = {"term": res, "id": ids, "source_db": "umls", "original_string": content, "semtype": semantic}
+                    d = self.findMapping(anno_terms, content)
                     better_strcture.append(d)
             return better_strcture
     

@@ -6,6 +6,7 @@ __pycache__/
 *.json
 *.jsonl
 *.p
+*.tsv
 geckodriver.log
 ghostdriver.log
 CANCER/geckodriver.log

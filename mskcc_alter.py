@@ -1,6 +1,8 @@
 import argparse
-import csv
+import json
 import pickle
+import time
+import datetime
 
 
 from selenium.common.exceptions import NoSuchElementException
@@ -249,8 +251,8 @@ class mskcc_content(object):
             sections = self.get_content_from_patients_and_caregiverss()
             data.update(sections)
             with open(output, "a") as f:
-                w = csv.writer(f)
-                w.writerows(data.items())
+                json.dump(data, f)
+                f.write("\n")
         elif section_type.lower() == "pro":
             data = {}
             data["name"] = herb_name
@@ -258,8 +260,8 @@ class mskcc_content(object):
             sections = self.get_content_from_healthcare_professionals()
             data.update(sections)
             with open(output, "a") as f:
-                w = csv.writer(f)
-                w.writerows(data.items())
+                json.dump(data, f)
+                f.write("\n")
         else:
             raise ValueError("Only two types of section supported.")
         print("---------------------")
@@ -320,6 +322,9 @@ class driver(object):
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     args = parse_args()
     x = driver(args.pro_file, args.con_file)
     x.extract_process()
+    sec = time.time() - start_time
+    print("Time used: " + str(datetime.timedelta(seconds=sec)))

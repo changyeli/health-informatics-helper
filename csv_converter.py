@@ -63,11 +63,11 @@ class converter(object):
         if read_type.lower() == "con":
             con_df = self.process_json_file(self.con_file)
             con_df.to_csv(self.con_outfile, sep="\t",
-                          mode="a", header=False, index=False)
+                          index=False)
         elif read_type.lower() == "pro":
             pro_df = self.process_json_file(self.pro_file)
             pro_df.to_csv(self.pro_outfile, sep="\t",
-                          mode="a", header=False, index=False)
+                          index=False)
         else:
             raise ValueError("Only con and pro supported.")
 
